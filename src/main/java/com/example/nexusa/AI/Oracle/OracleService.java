@@ -220,12 +220,20 @@ public class OracleService {
                 ? buildIsolatedUserMessage(context, userQuery)
                 : "User Question:\n" + sanitiseQuery(userQuery);
 
-        String answer = llmService.generate(systemPrompt, userMessage);
-        return new OracleResponse(
-                answer,
-                getCitations(topBlocks),
-                intent.getCivilizationName()
-        );
+        // In OracleService.query()
+
+            String answer = llmService.generate(systemPrompt, userMessage);
+
+
+            if (answer.startsWith("RATE_LIMITED:")) {
+                return new OracleResponse(
+                        "The Oracle is briefly resting — daily query capacity has been reached. " +
+                                "Please try again in a few hours.",
+                        List.of(), null
+                );
+            }
+            return new OracleResponse(answer, getCitations(topBlocks), intent.getCivilizationName());
+
     }
 
     // ── Context isolation wrapper ─────────────────────────────────────────────

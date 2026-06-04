@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = 'aksharanexus-production.up.railway.app';
 
 const api = {
     getToken: () => localStorage.getItem('akshara_token'),

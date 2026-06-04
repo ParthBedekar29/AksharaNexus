@@ -25,12 +25,12 @@ public class AISecurityConfig {
     @Bean
     public SecurityFilterChain aiFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/oracle/**", "/auth/**")
+                .securityMatcher("/oracle/**", "/ai/auth/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(aiCorsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/ai/auth/**").permitAll()
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
                         .anyRequest().authenticated()
                 )
@@ -61,7 +61,7 @@ public class AISecurityConfig {
                 new UrlBasedCorsConfigurationSource();
 
         source.registerCorsConfiguration("/oracle/**", config);
-        source.registerCorsConfiguration("/auth/**", config);
+        source.registerCorsConfiguration("/ai/auth/**", config);
 
         return source;
     }

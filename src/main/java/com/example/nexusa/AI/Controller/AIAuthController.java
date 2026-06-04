@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/ai/auth")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")  // open to Flutter mobile too
 public class AIAuthController {

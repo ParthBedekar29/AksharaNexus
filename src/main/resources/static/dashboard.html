@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — AksharaNexus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+    <a href="index.html" class="nav-logo">AksharaNexus</a>
+    <div class="nav-right">
+        <span id="nav-role"></span>
+    </div>
+</nav>
+
+<div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-nav">
+            <span class="sidebar-section-label">Workspace</span>
+            <button class="sidebar-link active" onclick="switchTab('civilizations', this)">
+                <span class="sidebar-icon">◈</span> Civilizations
+            </button>
+            <button class="sidebar-link" id="users-sidebar-btn" onclick="switchTab('users', this)" style="display:none">
+                <span class="sidebar-icon">◎</span> University Users
+            </button>
+            <button class="sidebar-link" id="review-sidebar-btn" onclick="switchTab('review', this)" style="display:none">
+                <span class="sidebar-icon">◑</span> Review Status
+            </button>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="user-row">
+                <div class="user-avatar" id="user-avatar">—</div>
+                <div style="min-width:0">
+                    <div class="user-name" id="user-name">—</div>
+                    <div class="user-role" id="user-role-label">—</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="Auth && Auth.logout()">Sign out</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        <div class="main-header">
+            <div>
+                <h2 id="page-title">Civilizations</h2>
+                <p id="page-sub">Loading…</p>
+            </div>
+            <div id="header-actions"></div>
+        </div>
+
+        <div class="tab-nav" id="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('civilizations', this)">Civilizations</button>
+            <button class="tab-btn" id="users-tab-btn" onclick="switchTab('users', this)" style="display:none">University Users</button>
+            <button class="tab-btn" id="review-tab-btn" onclick="switchTab('review', this)" style="display:none">Review Status</button>
+        </div>
+
+        <!-- Civilizations Tab -->
+        <div class="tab-panel active" id="tab-civilizations">
+            <div id="civ-wrap">
+                <div class="skeleton-grid">
+                    <div class="skeleton-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+                            <div class="skeleton-line wide" style="margin:0"></div>
+                            <div class="skeleton-line tag" style="margin:0"></div>
+                        </div>
+                        <div class="skeleton-line" style="width:100%"></div>
+                        <div class="skeleton-line med"></div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+                            <div class="skeleton-line" style="width:55%;margin:0"></div>
+                            <div class="skeleton-line tag" style="margin:0"></div>
+                        </div>
+                        <div class="skeleton-line" style="width:100%"></div>
+                        <div class="skeleton-line" style="width:60%"></div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+                            <div class="skeleton-line wide" style="margin:0"></div>
+                            <div class="skeleton-line tag" style="margin:0"></div>
+                        </div>
+                        <div class="skeleton-line" style="width:100%"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-panel" id="tab-users">
+            <div id="users-wrap">
+                <div class="loading-row"><div class="spin"></div> Loading users…</div>
+            </div>
+        </div>
+
+        <!-- Review Status Tab -->
+        <div class="tab-panel" id="tab-review">
+            <!-- Filter bar -->
+            <div class="review-filter-bar">
+                <div class="review-filter-group">
+                    <label class="review-filter-label">Civilization</label>
+                    <select class="review-filter-select" id="review-civ-filter" onchange="applyReviewFilters()">
+                        <option value="">All civilizations</option>
+                    </select>
+                </div>
+                <div class="review-filter-group">
+                    <label class="review-filter-label">Status</label>
+                    <div class="review-status-pills" id="review-status-pills">
+                        <button class="status-pill active" data-status="" onclick="setStatusFilter(this, '')">All</button>
+                        <button class="status-pill pill-approved" data-status="APPROVED" onclick="setStatusFilter(this, 'APPROVED')">Approved</button>
+                        <button class="status-pill pill-rejected" data-status="REJECTED" onclick="setStatusFilter(this, 'REJECTED')">Rejected</button>
+                        <button class="status-pill pill-revision" data-status="REVISION_REQUESTED" onclick="setStatusFilter(this, 'REVISION_REQUESTED')">Revision</button>
+                    </div>
+                </div>
+                <div class="review-filter-meta" id="review-filter-meta"></div>
+            </div>
+
+            <div id="review-wrap">
+                <div class="loading-row"><div class="spin"></div> Loading review data…</div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Create Civilization Modal -->
+<div class="modal-overlay" id="modal-create-civ">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">New Civilization</span>
+            <button class="modal-close" onclick="closeModal('modal-create-civ')">✕</button>
+        </div>
+        <form id="create-civ-form">
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="civ-title" placeholder="e.g. Indus Valley Civilization" required />
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="civ-desc" rows="3" placeholder="Brief overview…"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Start Year</label>
+                    <input type="number" id="civ-start" placeholder="-3300 for BCE" required />
+                </div>
+                <div class="form-group">
+                    <label>End Year</label>
+                    <input type="number" id="civ-end" placeholder="-1300 for BCE" required />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Initial Commit Message</label>
+                <input type="text" id="civ-commit" placeholder="e.g. Initial scaffold" required />
+            </div>
+            <div class="modal-actions">
+                <button type="submit" class="btn-modal-submit" id="create-civ-btn">Create</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('modal-create-civ')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/api.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entry — AksharaNexus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/entry.css" />
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-logo">AksharaNexus</div>
+    <div class="spinner"></div>
+    <div class="loading-sub">Loading entry…</div>
+</div>
+
+<!-- ═══ TOP BAR ═══ -->
+<div class="editor-topbar">
+    <div class="topbar-icon">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="12" height="1.5" rx="0.5"/>
+            <rect x="2" y="5.25" width="12" height="1.5" rx="0.5"/>
+            <rect x="2" y="8.5" width="8" height="1.5" rx="0.5"/>
+            <rect x="2" y="11.75" width="10" height="1.5" rx="0.5"/>
+        </svg>
+    </div>
+    <div class="topbar-meta">
+        <div class="topbar-title-row">
+            <span class="topbar-docname" id="topbar-docname">Entry title</span>
+        </div>
+        <div class="topbar-breadcrumb-row">
+            <span id="bc-civ">Civilization</span>
+            <span class="bc-sep">/</span>
+            <span id="bc-vol">Volume</span>
+            <span class="bc-sep">/</span>
+            <span id="bc-entry">Entry</span>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="save-status" id="save-status">
+            <div class="status-dot"></div>
+            <span>Ready</span>
+        </div>
+        <button class="btn-topbar-icon" onclick="history.back()" title="Back">&#8592;</button>
+        <button class="btn-save" id="save-btn" onclick="doSave()" title="Save (Ctrl+S)">Save</button>
+        <button class="btn-share" id="share-btn" onclick="handleShare()">Share</button>
+    </div>
+</div>
+
+<!-- ═══ FORMAT TOOLBAR ═══ -->
+<div class="format-toolbar" id="format-toolbar">
+    <select class="toolbar-select" style="width:118px" onchange="execFmt('fontName', this.value)" title="Font">
+        <option value="'IBM Plex Sans', sans-serif">IBM Plex Sans</option>
+        <option value="'IBM Plex Serif', serif">IBM Plex Serif</option>
+        <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+        <option value="Georgia, serif">Georgia</option>
+    </select>
+    <select class="toolbar-select" style="width:60px; margin-left:4px" onchange="execFmt('fontSize', this.value)" title="Size">
+        <option value="1">10</option><option value="2">12</option>
+        <option value="3" selected>14</option><option value="4">16</option>
+        <option value="5">20</option><option value="6">24</option><option value="7">32</option>
+    </select>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" onclick="execFmt('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button class="toolbar-btn" onclick="execFmt('italic')" title="Italic"><i>I</i></button>
+    <button class="toolbar-btn" onclick="execFmt('underline')" title="Underline"><u>U</u></button>
+    <button class="toolbar-btn" onclick="execFmt('strikeThrough')" title="Strikethrough" style="text-decoration:line-through">S</button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-color-btn" title="Text color" onclick="pickTextColor()">
+        <span class="letter" id="color-letter" style="color:#1C1917">A</span>
+        <span class="swatch" id="color-swatch" style="background:#1C1917"></span>
+    </button>
+    <button class="toolbar-color-btn" title="Highlight" onclick="pickHighlight()">
+        <span class="letter" style="color:#92600A; background:#FDF3E3; padding:0 2px">A</span>
+        <span class="swatch" id="highlight-swatch" style="background:#FDE68A"></span>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" onclick="execFmt('justifyLeft')" title="Align left">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="14" y2="3"/><line x1="1" y1="7" x2="10" y2="7"/><line x1="1" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="execFmt('justifyCenter')" title="Center">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="14" y2="3"/><line x1="4" y1="7" x2="11" y2="7"/><line x1="1" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="execFmt('justifyRight')" title="Align right">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="14" y2="3"/><line x1="5" y1="7" x2="14" y2="7"/><line x1="1" y1="11" x2="14" y2="11"/></svg>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" onclick="execFmt('insertUnorderedList')" title="Bullet list">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="2.5" cy="4" r="1" fill="currentColor" stroke="none"/><line x1="5" y1="4" x2="14" y2="4"/><circle cx="2.5" cy="8" r="1" fill="currentColor" stroke="none"/><line x1="5" y1="8" x2="14" y2="8"/><circle cx="2.5" cy="12" r="1" fill="currentColor" stroke="none"/><line x1="5" y1="12" x2="14" y2="12"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="execFmt('insertOrderedList')" title="Numbered list">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><text x="1" y="5" font-size="4.5" fill="currentColor" stroke="none">1.</text><line x1="6" y1="4" x2="14" y2="4"/><text x="1" y="9" font-size="4.5" fill="currentColor" stroke="none">2.</text><line x1="6" y1="8" x2="14" y2="8"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="execFmt('indent')" title="Indent">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="1" y1="3" x2="14" y2="3"/><line x1="5" y1="7" x2="14" y2="7"/><line x1="1" y1="11" x2="14" y2="11"/><polyline points="1,5.5 3.5,7 1,8.5" fill="none"/></svg>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" onclick="insertLink()" title="Insert link">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 9.5a3.5 3.5 0 0 0 4.95 0l1.77-1.77a3.5 3.5 0 0 0-4.95-4.95l-.88.88"/><path d="M9.5 5.5a3.5 3.5 0 0 0-4.95 0L2.78 7.27a3.5 3.5 0 0 0 4.95 4.95l.88-.88"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="execFmt('removeFormat')" title="Clear formatting">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="3" x2="9" y2="3"/><line x1="6" y1="3" x2="6" y2="12"/><line x1="10" y1="9" x2="13" y2="12"/><line x1="13" y1="9" x2="10" y2="12"/></svg>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <button class="toolbar-btn" onclick="document.execCommand('undo')" title="Undo">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7.5A4.5 4.5 0 1 1 7.5 12"/><polyline points="2,4.5 3,7.5 6,7" fill="none"/></svg>
+    </button>
+    <button class="toolbar-btn" onclick="document.execCommand('redo')" title="Redo">
+        <svg viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 7.5A4.5 4.5 0 1 0 7.5 12"/><polyline points="13,4.5 12,7.5 9,7" fill="none"/></svg>
+    </button>
+
+    <div class="toolbar-sep"></div>
+
+    <span style="font-family:var(--mono);font-size:0.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 6px 0 2px;white-space:nowrap">Insert</span>
+    <button class="toolbar-btn" style="width:auto;padding:0 10px;font-size:0.775rem;gap:5px;display:flex;align-items:center" onclick="showInsertMenu(event,'EVENT')" title="Insert Event block">
+        <span style="width:6px;height:6px;border-radius:2px;background:#C49A30;flex-shrink:0;display:inline-block"></span>Event
+    </button>
+    <button class="toolbar-btn" style="width:auto;padding:0 10px;font-size:0.775rem;gap:5px;display:flex;align-items:center" onclick="showInsertMenu(event,'ERA')" title="Insert Era block">
+        <span style="width:6px;height:6px;border-radius:2px;background:var(--teal);flex-shrink:0;display:inline-block"></span>Era
+    </button>
+    <button class="toolbar-btn" style="width:auto;padding:0 10px;font-size:0.775rem;gap:5px;display:flex;align-items:center" onclick="showInsertMenu(event,'ASPECT')" title="Insert Aspect block">
+        <span style="width:6px;height:6px;border-radius:2px;background:#4A6BB5;flex-shrink:0;display:inline-block"></span>Aspect
+    </button>
+    <button class="toolbar-btn" style="width:auto;padding:0 10px;font-size:0.775rem;gap:5px;display:flex;align-items:center" onclick="showInsertMenu(event,'IMAGE')" title="Insert Image block">
+        <span style="width:6px;height:6px;border-radius:2px;background:#9A4A3E;flex-shrink:0;display:inline-block"></span>Image
+    </button>
+</div>
+
+<div class="editor-shell">
+
+    <!-- ═══ LEFT SIDEBAR ═══ -->
+    <aside class="left-sidebar" id="left-sidebar">
+        <div class="sidebar-toggle">
+            <button class="btn-collapse" id="btn-collapse" onclick="toggleSidebar()" title="Collapse panel">&#8592;</button>
+        </div>
+
+        <div class="sidebar-section" id="sb-meta">
+            <span class="sidebar-section-label">Period</span>
+            <div class="sidebar-meta-field">
+                <label for="meta-start">Start year</label>
+                <input class="sidebar-meta-input" type="number" id="meta-start"
+                       placeholder="e.g. −2600" oninput="liveYearUpdate()" />
+            </div>
+            <div class="sidebar-meta-field">
+                <label for="meta-end">End year</label>
+                <input class="sidebar-meta-input" type="number" id="meta-end"
+                       placeholder="e.g. −1900" oninput="liveYearUpdate()" />
+            </div>
+            <div class="period-display" id="period-display">
+                <span class="pd-label">Period</span>
+                <span class="pd-value" id="date-computed">—</span>
+            </div>
+        </div>
+
+        <div class="sidebar-section" id="sb-blocks">
+            <span class="sidebar-section-label">Insert block</span>
+            <button class="block-type-btn" data-type="EVENT" onclick="insertBlockAtCursor('EVENT')">
+                <span class="btn-type-dot"></span>
+                <span>
+                    <span class="btn-label">Event</span>
+                    <span class="btn-desc">Date, location, description</span>
+                </span>
+                <span class="drag-hint">⋮⋮</span>
+            </button>
+            <button class="block-type-btn" data-type="ERA" onclick="insertBlockAtCursor('ERA')">
+                <span class="btn-type-dot"></span>
+                <span>
+                    <span class="btn-label">Era</span>
+                    <span class="btn-desc">Time period &amp; overview</span>
+                </span>
+                <span class="drag-hint">⋮⋮</span>
+            </button>
+            <button class="block-type-btn" data-type="ASPECT" onclick="insertBlockAtCursor('ASPECT')">
+                <span class="btn-type-dot"></span>
+                <span>
+                    <span class="btn-label">Aspect</span>
+                    <span class="btn-desc">Tags &amp; thematic notes</span>
+                </span>
+                <span class="drag-hint">⋮⋮</span>
+            </button>
+            <button class="block-type-btn" data-type="IMAGE" onclick="insertBlockAtCursor('IMAGE')">
+                <span class="btn-type-dot"></span>
+                <span>
+                    <span class="btn-label">Image</span>
+                    <span class="btn-desc">Photo with caption</span>
+                </span>
+                <span class="drag-hint">⋮⋮</span>
+            </button>
+        </div>
+
+        <div class="sidebar-section" id="sb-stats">
+            <span class="sidebar-section-label">Stats</span>
+            <div class="stat-row"><span class="stat-label">Words</span><span class="stat-val" id="cnt-words">0</span></div>
+            <div class="stat-row"><span class="stat-label">Time span</span><span class="stat-val" id="cnt-span">—</span></div>
+            <div class="stat-row"><span class="stat-label">Total blocks</span><span class="stat-val" id="cnt-total">0</span></div>
+            <div class="stat-row"><span class="stat-label">Events</span><span class="stat-val" id="cnt-EVENT">0</span></div>
+            <div class="stat-row"><span class="stat-label">Eras</span><span class="stat-val" id="cnt-ERA">0</span></div>
+            <div class="stat-row"><span class="stat-label">Aspects</span><span class="stat-val" id="cnt-ASPECT">0</span></div>
+            <div class="stat-row"><span class="stat-label">Images</span><span class="stat-val" id="cnt-IMAGE">0</span></div>
+        </div>
+
+        <div class="sidebar-section" id="sb-readonly" style="display:none">
+            <span class="sidebar-section-label">Access</span>
+            <div style="font-size:0.8rem;color:var(--faint);line-height:1.5;background:var(--bg);border:1px solid var(--rule);border-radius:var(--radius);padding:10px;">
+                Viewer — read&#8209;only
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══ CANVAS AREA ═══ -->
+    <main class="canvas-area" id="canvas-area">
+        <div class="doc-paper" id="doc-paper">
+
+            <textarea
+                    class="entry-title-input"
+                    id="entry-title"
+                    placeholder="Untitled entry…"
+                    rows="1"
+                    maxlength="200"
+            ></textarea>
+
+            <div
+                    class="entry-body"
+                    id="entry-body"
+                    contenteditable="true"
+                    data-placeholder="Start writing. Use the sidebar or toolbar to insert blocks anywhere in your text…"
+                    spellcheck="true"
+            ></div>
+
+        </div>
+    </main>
+
+</div>
+
+<!-- Floating block insert menu -->
+<div class="block-insert-float" id="block-insert-float">
+    <span class="bif-header">Insert block</span>
+    <button class="bif-item" data-type="EVENT" onclick="insertBlockFromFloat('EVENT')">
+        <span class="bif-dot"></span> Event
+        <span style="font-size:0.75rem;color:var(--faint);margin-left:auto">Date &amp; place</span>
+    </button>
+    <button class="bif-item" data-type="ERA" onclick="insertBlockFromFloat('ERA')">
+        <span class="bif-dot"></span> Era
+        <span style="font-size:0.75rem;color:var(--faint);margin-left:auto">Time period</span>
+    </button>
+    <button class="bif-item" data-type="ASPECT" onclick="insertBlockFromFloat('ASPECT')">
+        <span class="bif-dot"></span> Aspect
+        <span style="font-size:0.75rem;color:var(--faint);margin-left:auto">Theme &amp; tags</span>
+    </button>
+    <button class="bif-item" data-type="IMAGE" onclick="insertBlockFromFloat('IMAGE')">
+        <span class="bif-dot"></span> Image
+        <span style="font-size:0.75rem;color:var(--faint);margin-left:auto">Photo</span>
+    </button>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<input type="color" id="text-color-picker" style="display:none" onchange="applyTextColor(this.value)" value="#1C1917">
+<input type="color" id="highlight-picker"  style="display:none" onchange="applyHighlight(this.value)"  value="#FDE68A">
+
+<script src="js/api.js"></script>
+<script>
+    // ─── Bootstrap ────────────────────────────────────────────────────────────────
+    Auth.requireAuth();
+
+    const params   = new URLSearchParams(window.location.search);
+    const civId    = params.get('civId');
+    const nodeId   = params.get('nodeId');
+    const civTitle = params.get('civTitle') || 'Civilization';
+    const volTitle = params.get('volTitle') || 'Volume';
+    if (!civId || !nodeId) window.location.href = 'dashboard.html';
+
+    const jwtRole = Auth.getRole();
+    let canEdit   = (jwtRole === 'ADMIN' || jwtRole === 'EDITOR');
+
+    let currentNode  = null;
+    let isDirty      = false;
+    let sidebarOpen  = true;
+    let floatVisible = false;
+
+    document.getElementById('bc-civ').textContent = decodeURIComponent(civTitle);
+    document.getElementById('bc-vol').textContent = decodeURIComponent(volTitle);
+
+    // ─── Utilities ────────────────────────────────────────────────────────────────
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const uid = () => 'b_' + Math.random().toString(36).slice(2,10);
+
+    function formatYear(y) {
+        if (y == null || isNaN(y)) return null;
+        return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+    }
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+    }
+
+    // ─── Sidebar toggle ───────────────────────────────────────────────────────────
+    function toggleSidebar() {
+        const sb = document.getElementById('left-sidebar');
+        sidebarOpen = !sidebarOpen;
+        sb.classList.toggle('collapsed', !sidebarOpen);
+    }
+
+    // ─── Format toolbar ───────────────────────────────────────────────────────────
+    function execFmt(cmd, val) {
+        const body = document.getElementById('entry-body');
+        const sel  = window.getSelection();
+        if (!body.contains(sel?.anchorNode)) {
+            body.focus();
+            const range = document.createRange();
+            range.selectNodeContents(body);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        document.execCommand(cmd, false, val || null);
+        markUnsaved();
+    }
+    function pickTextColor()   { document.getElementById('text-color-picker').click(); }
+    function applyTextColor(v) { document.execCommand('foreColor',false,v); document.getElementById('color-swatch').style.background=v; document.getElementById('color-letter').style.color=v; markUnsaved(); }
+    function pickHighlight()   { document.getElementById('highlight-picker').click(); }
+    function applyHighlight(v) { document.execCommand('hiliteColor',false,v); document.getElementById('highlight-swatch').style.background=v; markUnsaved(); }
+    function insertLink()      { const u=prompt('Enter URL:'); if(u) document.execCommand('createLink',false,u); markUnsaved(); }
+
+    // ─── Save status ──────────────────────────────────────────────────────────────
+    function setSaveStatus(state, msg) {
+        const el = document.getElementById('save-status');
+        el.className = `save-status ${state}`;
+        el.querySelector('span').textContent = msg;
+    }
+    function markUnsaved() {
+        isDirty = true;
+        setSaveStatus('saving', 'Unsaved');
+        updateStats();
+    }
+
+    // ─── Save ─────────────────────────────────────────────────────────────────────
+    async function doSave() {
+        if (!canEdit) return;
+        const btn = document.getElementById('save-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        setSaveStatus('saving', 'Saving…');
+        try {
+            const startYear = document.getElementById('meta-start').value;
+            const endYear   = document.getElementById('meta-end').value;
+            const title     = document.getElementById('entry-title').value.trim();
+            const { blocks } = serializeBody();
+
+            // ── Citation validation: every non-TEXT block needs at least 1 citation ──
+            const missing = blocks.filter(b => b.type !== 'TEXT' && (!b.citations || b.citations.length === 0));
+            if (missing.length > 0) {
+                const names = missing.map(b => `"${b.data?.title || b.type}"`).join(', ');
+                showToast(`Add at least 1 citation to: ${names}`, 'error');
+                setSaveStatus('error', 'Citations missing');
+                if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+                return;
+            }
+
+            await CivAPI.updateNode(civId, nodeId, {
+                node: {
+                    nodeType: 'ENTRY',
+                    title,
+                    startYear: startYear !== '' ? parseInt(startYear) : (currentNode?.data?.startYear ?? null),
+                    endYear:   endYear   !== '' ? parseInt(endYear)   : (currentNode?.data?.endYear   ?? null),
+                    blocks: blocks.map(b => ({
+                        blockType: b.type,
+                        data:      b.data      ?? {},
+                        citations: b.citations ?? []
+                    }))
+                },
+                commitMsg: `Updated "${title || 'entry'}" — ${new Date().toISOString()}`
+            });
+
+            isDirty = false;
+            setSaveStatus('saved', 'Saved');
+            if (btn) { btn.textContent = 'Saved'; setTimeout(() => { btn.textContent = 'Save'; }, 1500); }
+        } catch(err) {
+            if (err.name === 'NetworkError') {
+                setSaveStatus('saving', 'Queued');
+                if (btn) btn.textContent = 'Save';
+            } else {
+                setSaveStatus('error', 'Save failed');
+                showToast(err.message || 'Could not save — check your connection', 'error');
+                if (btn) btn.textContent = 'Save';
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // ─── Stats ────────────────────────────────────────────────────────────────────
+    function updateStats() {
+        const body      = document.getElementById('entry-body');
+        const titleText = document.getElementById('entry-title').value;
+        const rawText   = (titleText + ' ' + (body.textContent || '')).trim();
+        const words     = rawText.split(/\s+/).filter(Boolean).length;
+        document.getElementById('cnt-words').textContent = words;
+
+        const blockEls = body.querySelectorAll('.an-block');
+        document.getElementById('cnt-total').textContent = blockEls.length;
+        ['EVENT','ERA','ASPECT','IMAGE'].forEach(t =>
+            document.getElementById(`cnt-${t}`).textContent =
+                body.querySelectorAll(`.an-block[data-type="${t}"]`).length
+        );
+    }
+
+    function liveYearUpdate() {
+        const s = parseInt(document.getElementById('meta-start').value);
+        const e = parseInt(document.getElementById('meta-end').value);
+        const el     = document.getElementById('date-computed');
+        const spanEl = document.getElementById('cnt-span');
+        const fs = !isNaN(s) ? formatYear(s) : null;
+        const fe = !isNaN(e) ? formatYear(e) : null;
+        if (fs && fe)  { el.textContent = `${fs} – ${fe}`; spanEl.textContent = `${Math.abs(e-s).toLocaleString()} yrs`; }
+        else if (fs)   { el.textContent = fs; spanEl.textContent = '—'; }
+        else           { el.textContent = '—'; spanEl.textContent = '—'; }
+        markUnsaved();
+    }
+
+    // ─── Block defaults ───────────────────────────────────────────────────────────
+    function defaultData(type) {
+        return {
+            EVENT:  { title:'', date:'', location:'', description:'', citations:[] },
+            ERA:    { title:'', startYear:'', endYear:'', description:'', citations:[] },
+            ASPECT: { title:'', tags:[], description:'', citations:[] },
+            IMAGE:  { title:'', src:'', caption:'', citations:[] }
+        }[type] || {};
+    }
+
+    // ─── Citations section ────────────────────────────────────────────────────────
+    function buildCitationsSection(blockId, citations, ro) {
+        const list       = Array.isArray(citations) ? citations : [];
+        const qualities  = ['PRIMARY', 'SECONDARY', 'TERTIARY'];
+
+        const citationItems = list.map((c, i) => `
+        <div class="an-citation-item"
+            data-citation-index="${i}"
+            data-cit-source="${esc(c.source||'')}"
+            data-cit-author="${esc(c.author||'')}"
+            data-cit-year="${c.year||''}"
+            data-cit-url="${esc(c.url||'')}"
+            data-cit-quality="${c.quality||''}">
+            <span class="an-citation-num">${i + 1}</span>
+            <span class="an-citation-summary">
+                ${c.author ? `<span class="cit-author">${esc(c.author)}</span>` : ''}
+                ${c.source ? `<span class="cit-source">${esc(c.source)}</span>` : ''}
+                ${c.year   ? `<span class="cit-year">${esc(String(c.year))}</span>` : ''}
+                ${c.quality ? `<span class="cit-quality cit-quality--${c.quality.toLowerCase()}">${c.quality.charAt(0) + c.quality.slice(1).toLowerCase()}</span>` : ''}
+            </span>
+            ${!ro ? `<button class="an-cit-remove" onclick="removeCitation('${blockId}',${i})" title="Remove">✕</button>` : ''}
+        </div>
+    `).join('');
+
+        const addForm = ro ? '' : `
+        <div class="an-citation-form" id="citform-${blockId}" style="display:none">
+            <div class="an-cit-form-grid">
+                <input class="an-cit-input" placeholder="Source / title *" id="citf-source-${blockId}" />
+                <input class="an-cit-input" placeholder="Author" id="citf-author-${blockId}" />
+                <input class="an-cit-input" type="number" placeholder="Year" id="citf-year-${blockId}" style="width:90px" />
+                <input class="an-cit-input" placeholder="URL (optional)" id="citf-url-${blockId}" />
+                <select class="an-cit-select" id="citf-quality-${blockId}">
+                    <option value="">Quality… *</option>
+                    ${qualities.map(q => `<option value="${q}">${q.charAt(0) + q.slice(1).toLowerCase()}</option>`).join('')}
+                </select>
+            </div>
+            <div class="an-cit-form-actions">
+                <button class="an-cit-confirm" onclick="confirmCitation('${blockId}')">Add</button>
+                <button class="an-cit-cancel"  onclick="cancelCitation('${blockId}')">Cancel</button>
+            </div>
+        </div>
+    `;
+
+        return `
+        <div class="an-citations-section" id="citations-${blockId}">
+            <div class="an-citations-header">
+                <span class="an-citations-label">Citations</span>
+                ${!ro ? `<button class="an-cit-add-btn" onclick="showCitationForm('${blockId}')">+ Add</button>` : ''}
+            </div>
+            <div class="an-citations-list" id="citlist-${blockId}">
+                ${citationItems || `<span class="an-citations-empty">No citations yet — at least one required</span>`}
+            </div>
+            ${addForm}
+        </div>
+    `;
+    }
+
+    // ─── Citation interaction ─────────────────────────────────────────────────────
+    function showCitationForm(blockId) {
+        const form = document.getElementById(`citform-${blockId}`);
+        if (!form) return;
+        ['source','author','year','url','quality'].forEach(f => {
+            const el = document.getElementById(`citf-${f}-${blockId}`);
+            if (el) el.value = '';
+        });
+        form.style.display = 'block';
+        document.getElementById(`citf-source-${blockId}`)?.focus();
+    }
+
+    function cancelCitation(blockId) {
+        const form = document.getElementById(`citform-${blockId}`);
+        if (form) form.style.display = 'none';
+    }
+
+    function confirmCitation(blockId) {
+        const source  = document.getElementById(`citf-source-${blockId}`)?.value.trim();
+        const author  = document.getElementById(`citf-author-${blockId}`)?.value.trim();
+        const year    = document.getElementById(`citf-year-${blockId}`)?.value.trim();
+        const url     = document.getElementById(`citf-url-${blockId}`)?.value.trim();
+        const quality = document.getElementById(`citf-quality-${blockId}`)?.value;
+
+        if (!source)  { showToast('Source / title is required', 'error'); return; }
+        if (!quality) { showToast('Select a quality level', 'error'); return; }
+
+        const list = document.getElementById(`citlist-${blockId}`);
+        if (!list) return;
+
+        // Remove empty state message if present
+        list.querySelector('.an-citations-empty')?.remove();
+
+        const idx = list.querySelectorAll('.an-citation-item').length;
+        const div = document.createElement('div');
+        div.className = 'an-citation-item';
+        div.dataset.citationIndex = idx;
+        div.dataset.citSource     = source;
+        div.dataset.citAuthor     = author  || '';
+        div.dataset.citYear       = year    || '';
+        div.dataset.citUrl        = url     || '';
+        div.dataset.citQuality    = quality;
+        div.innerHTML = `
+        <span class="an-citation-num">${idx + 1}</span>
+        <span class="an-citation-summary">
+            ${author ? `<span class="cit-author">${esc(author)}</span>` : ''}
+            <span class="cit-source">${esc(source)}</span>
+            ${year ? `<span class="cit-year">${esc(year)}</span>` : ''}
+            <span class="cit-quality cit-quality--${quality.toLowerCase()}">${quality.charAt(0) + quality.slice(1).toLowerCase()}</span>
+        </span>
+        <button class="an-cit-remove" onclick="removeCitation('${blockId}',${idx})" title="Remove">✕</button>
+    `;
+        list.appendChild(div);
+        cancelCitation(blockId);
+        markUnsaved();
+    }
+
+    function removeCitation(blockId, idx) {
+        const list = document.getElementById(`citlist-${blockId}`);
+        if (!list) return;
+        const items = list.querySelectorAll('.an-citation-item');
+        if (items[idx]) items[idx].remove();
+
+        // Renumber remaining and fix onclick indices
+        list.querySelectorAll('.an-citation-item').forEach((el, i) => {
+            el.dataset.citationIndex = i;
+            const num = el.querySelector('.an-citation-num');
+            if (num) num.textContent = i + 1;
+            const btn = el.querySelector('.an-cit-remove');
+            if (btn) btn.setAttribute('onclick', `removeCitation('${blockId}',${i})`);
+        });
+
+        // Restore empty state if none left
+        if (!list.querySelectorAll('.an-citation-item').length) {
+            const span = document.createElement('span');
+            span.className = 'an-citations-empty';
+            span.textContent = 'No citations yet — at least one required';
+            list.appendChild(span);
+        }
+        markUnsaved();
+    }
+
+    // ─── Read citations from DOM ──────────────────────────────────────────────────
+    function readCitationsFromEl(blockEl) {
+        const blockId = blockEl.dataset.blockId;
+        const items   = blockEl.querySelectorAll(`#citlist-${blockId} .an-citation-item`);
+        return [...items].map(item => ({
+            source:  item.dataset.citSource  || '',
+            author:  item.dataset.citAuthor  || '',
+            year:    item.dataset.citYear ? parseInt(item.dataset.citYear) : null,
+            url:     item.dataset.citUrl     || '',
+            quality: item.dataset.citQuality || ''
+        }));
+    }
+
+    // ─── Build block element ──────────────────────────────────────────────────────
+    function buildBlockEl(id, type, data, ro) {
+        const wrap = document.createElement('div');
+        wrap.className = 'an-block';
+        wrap.dataset.type    = type;
+        wrap.dataset.blockId = id;
+        wrap.contentEditable = 'false';
+
+        const header = document.createElement('div');
+        header.className = 'an-block-header';
+        header.innerHTML = `
+        <span class="an-block-badge">${type}</span>
+        <input class="an-block-title-input" placeholder="Section title…"
+            value="${esc(data.title||'')}" ${ro?'readonly':''}
+            oninput="syncBlockData('${id}','title',this.value)" />
+        ${canEdit ? `
+        <div class="an-block-controls">
+            <button class="an-ctrl-btn" title="Move up"    onclick="moveBlock('${id}',-1)">↑</button>
+            <button class="an-ctrl-btn" title="Move down"  onclick="moveBlock('${id}',1)">↓</button>
+            <button class="an-ctrl-btn del" title="Remove" onclick="deleteBlock('${id}')">✕</button>
+        </div>` : ''}
+    `;
+
+        const body = document.createElement('div');
+        body.className   = 'an-block-body';
+        body.innerHTML   = buildBlockBody(id, type, data, ro);
+
+        wrap.appendChild(header);
+        wrap.appendChild(body);
+        return wrap;
+    }
+
+    // ─── Build block body (switch) ────────────────────────────────────────────────
+    function buildBlockBody(id, type, data, ro) {
+        const d = data;
+
+        switch (type) {
+
+            case 'EVENT':
+                return `
+                <div class="an-two-col">
+                    <div class="an-field-group">
+                        <span class="an-field-label">Date / Year</span>
+                        <div class="an-field-input" contenteditable="${ro?'false':'true'}"
+                            data-placeholder="e.g. 2600 BCE"
+                            oninput="syncBlockData('${id}','date',this.textContent)"
+                        >${esc(d.date||'')}</div>
+                    </div>
+                    <div class="an-field-group">
+                        <span class="an-field-label">Location</span>
+                        <div class="an-field-input" contenteditable="${ro?'false':'true'}"
+                            data-placeholder="e.g. Mohenjo-daro"
+                            oninput="syncBlockData('${id}','location',this.textContent)"
+                        >${esc(d.location||'')}</div>
+                    </div>
+                </div>
+                <div class="an-description" contenteditable="${ro?'false':'true'}"
+                    data-placeholder="Describe this event…"
+                    oninput="syncBlockData('${id}','description',this.textContent)"
+                >${esc(d.description||'')}</div>
+            ` + buildCitationsSection(id, d.citations || [], ro);
+
+            case 'ERA':
+                return `
+                <div class="an-two-col">
+                    <div class="an-field-group">
+                        <span class="an-field-label">Start Year</span>
+                        <div class="an-field-input" contenteditable="${ro?'false':'true'}"
+                            data-placeholder="-3000"
+                            oninput="syncBlockData('${id}','startYear',this.textContent)"
+                        >${esc(d.startYear||'')}</div>
+                    </div>
+                    <div class="an-field-group">
+                        <span class="an-field-label">End Year</span>
+                        <div class="an-field-input" contenteditable="${ro?'false':'true'}"
+                            data-placeholder="-1000"
+                            oninput="syncBlockData('${id}','endYear',this.textContent)"
+                        >${esc(d.endYear||'')}</div>
+                    </div>
+                </div>
+                <div class="an-description" contenteditable="${ro?'false':'true'}"
+                    data-placeholder="Describe this era…"
+                    oninput="syncBlockData('${id}','description',this.textContent)"
+                >${esc(d.description||'')}</div>
+                <div class="an-era-bar"></div>
+            ` + buildCitationsSection(id, d.citations || [], ro);
+
+            case 'ASPECT': {
+                const tags = Array.isArray(d.tags) ? d.tags : [];
+                return `
+                <div class="an-description" contenteditable="${ro?'false':'true'}"
+                    data-placeholder="Describe this aspect…"
+                    oninput="syncBlockData('${id}','description',this.textContent)"
+                >${esc(d.description||'')}</div>
+                <div class="an-tag-row" id="tagrow-${id}">
+                    ${tags.map((t,i)=>`
+                        <span class="an-tag">${esc(t)}
+                            ${canEdit?`<button class="an-tag-remove" onclick="removeTag('${id}',${i})">✕</button>`:''}
+                        </span>`).join('')}
+                    ${canEdit?`<button class="an-tag-add" onclick="addTag('${id}')">+ tag</button>`:''}
+                </div>
+            ` + buildCitationsSection(id, d.citations || [], ro);
+            }
+
+            case 'IMAGE': {
+                const imageContent = d.src ? `
+                <img class="an-image-preview" src="${d.src}" alt="${esc(d.caption||'')}" />
+                <input class="an-image-caption" placeholder="Add a caption…"
+                    value="${esc(d.caption||'')}" ${ro?'readonly':''}
+                    oninput="syncBlockData('${id}','caption',this.value)" />
+                ${canEdit ? `
+                <div class="an-image-replace">
+                    <button class="an-image-replace-btn">Replace image</button>
+                    <input type="file" accept="image/*" onchange="loadImageFile(event,'${id}')" />
+                </div>` : ''}
+            ` : `
+                <div class="an-image-zone" id="imgzone-${id}"
+                    ondragover="event.preventDefault();this.classList.add('drag-over')"
+                    ondragleave="this.classList.remove('drag-over')"
+                    ondrop="dropImageFile(event,'${id}')">
+                    ${canEdit?`<input type="file" accept="image/*" onchange="loadImageFile(event,'${id}')" />`:''}
+                    <div class="an-image-zone-title">${canEdit?'Click or drag an image':'No image'}</div>
+                    ${canEdit?`<div class="an-image-zone-sub">PNG, JPG, GIF, WebP</div>`:''}
+                </div>
+                <input class="an-image-caption" placeholder="Add a caption…"
+                    value="${esc(d.caption||'')}" ${ro?'readonly':''}
+                    oninput="syncBlockData('${id}','caption',this.value)" />
+            `;
+                return imageContent + buildCitationsSection(id, d.citations || [], ro);
+            }
+
+            default: return '';
+        }
+    }
+
+    // ─── Sync block data (live) ───────────────────────────────────────────────────
+    function syncBlockData(blockId, key, val) {
+        markUnsaved();
+    }
+
+    // ─── Read block data from DOM ─────────────────────────────────────────────────
+    function readBlockDataFromEl(el) {
+        const type  = el.dataset.type;
+        const title = el.querySelector('.an-block-title-input')?.value || '';
+        const d = { title };
+
+        switch (type) {
+            case 'EVENT':
+                d.date        = el.querySelectorAll('.an-field-input')[0]?.textContent.trim() || '';
+                d.location    = el.querySelectorAll('.an-field-input')[1]?.textContent.trim() || '';
+                d.description = el.querySelector('.an-description')?.textContent.trim() || '';
+                break;
+            case 'ERA':
+                d.startYear   = el.querySelectorAll('.an-field-input')[0]?.textContent.trim() || '';
+                d.endYear     = el.querySelectorAll('.an-field-input')[1]?.textContent.trim() || '';
+                d.description = el.querySelector('.an-description')?.textContent.trim() || '';
+                break;
+            case 'ASPECT':
+                d.description = el.querySelector('.an-description')?.textContent.trim() || '';
+                d.tags = [...el.querySelectorAll('.an-tag')]
+                    .map(t => t.childNodes[0]?.textContent.trim())
+                    .filter(Boolean);
+                break;
+            case 'IMAGE':
+                d.src     = el.querySelector('.an-image-preview')?.src || '';
+                d.caption = el.querySelector('.an-image-caption')?.value || '';
+                break;
+        }
+
+        // Citations are stored in data-* attributes — read them cleanly
+        d.citations = readCitationsFromEl(el);
+        return d;
+    }
+
+    // ─── Serialize body → { blocks } ─────────────────────────────────────────────
+    function serializeBody() {
+        const bodyEl = document.getElementById('entry-body');
+        const blocks  = [];
+        let proseBuf  = [];
+
+        function flushProse() {
+            if (!proseBuf.length) return;
+            const html = proseBuf.map(n => {
+                const tmp = document.createElement('div');
+                tmp.appendChild(n.cloneNode(true));
+                return tmp.innerHTML;
+            }).join('');
+            const hasContent = proseBuf.some(n =>
+                n.textContent.trim() ||
+                (n.nodeType === Node.ELEMENT_NODE && n.querySelector('img,br'))
+            );
+            // Emit spacer TEXT blocks between blocks so cursor lands are preserved on reload
+            if (hasContent || blocks.length > 0) {
+                blocks.push({ type: 'TEXT', data: { html }, citations: [] });
+            }
+            proseBuf = [];
+        }
+
+        for (const child of bodyEl.childNodes) {
+            if (child.nodeType === Node.ELEMENT_NODE && child.classList.contains('an-block')) {
+                flushProse();
+                const blockData  = readBlockDataFromEl(child);
+                const citations  = blockData.citations || [];
+                delete blockData.citations; // citations sit at top level, not inside data map
+                blocks.push({
+                    type:      child.dataset.type,
+                    data:      blockData,
+                    citations: citations
+                });
+            } else {
+                proseBuf.push(child);
+            }
+        }
+        flushProse();
+
+        return { prose: '', blocks };
+    }
+
+    // ─── Rebuild body from saved data ─────────────────────────────────────────────
+    function buildBodyFromData(savedProse, blocks, ro) {
+        const body = document.getElementById('entry-body');
+        body.innerHTML = '';
+
+        if (!blocks || !blocks.length) {
+            const p = document.createElement('p'); p.innerHTML = '<br>';
+            body.appendChild(p);
+            return;
+        }
+
+        for (const b of blocks) {
+            const type = b.blockType || b.type || 'TEXT';
+
+            if (type === 'TEXT') {
+                const html = b.data?.html || '';
+                if (html.trim()) {
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = html;
+                    while (tmp.firstChild) body.appendChild(tmp.firstChild);
+                } else {
+                    const p = document.createElement('p'); p.innerHTML = '<br>';
+                    body.appendChild(p);
+                }
+            } else {
+                // Guarantee a paragraph above each block for cursor placement
+                const lastChild = body.lastChild;
+                const needsPre  = !lastChild ||
+                    (lastChild.nodeType === Node.ELEMENT_NODE && lastChild.classList.contains('an-block'));
+                if (needsPre) {
+                    const p = document.createElement('p'); p.innerHTML = '<br>';
+                    body.appendChild(p);
+                }
+
+                // Merge citations back into data so buildBlockBody can render them
+                const data = { ...(b.data || {}), citations: b.citations || [] };
+                const id   = uid();
+                const el   = buildBlockEl(id, type, data, ro);
+                body.appendChild(el);
+
+                const p = document.createElement('p'); p.innerHTML = '<br>';
+                body.appendChild(p);
+            }
+        }
+
+        // Always end with a typeable paragraph
+        const last = body.lastChild;
+        if (!last || (last.nodeType === Node.ELEMENT_NODE && last.classList.contains('an-block'))) {
+            const p = document.createElement('p'); p.innerHTML = '<br>';
+            body.appendChild(p);
+        }
+    }
+
+    // ─── Insert block at cursor ───────────────────────────────────────────────────
+    function insertBlockAtCursor(type) {
+        const body    = document.getElementById('entry-body');
+        const sel     = window.getSelection();
+        const id      = uid();
+        const data    = defaultData(type);
+        const blockEl = buildBlockEl(id, type, data, false);
+
+        const newPara = () => { const p = document.createElement('p'); p.innerHTML = '<br>'; return p; };
+
+        let inserted = false;
+
+        if (sel && sel.rangeCount > 0 && body.contains(sel.anchorNode)) {
+            const range = sel.getRangeAt(0);
+            let node    = range.startContainer;
+            while (node && node.parentNode !== body) node = node.parentNode;
+
+            if (node && node !== body) {
+                const after = node.nextSibling;
+                body.insertBefore(newPara(), after || null);
+                const para = after ? after.previousSibling : body.lastChild;
+                body.insertBefore(blockEl, para.nextSibling || null);
+                body.insertBefore(newPara(), blockEl.nextSibling || null);
+                inserted = true;
+            }
+        }
+
+        if (!inserted) {
+            body.appendChild(newPara());
+            body.appendChild(blockEl);
+            body.appendChild(newPara());
+        }
+
+        const nextPara = blockEl.nextSibling;
+        if (nextPara) {
+            const range = document.createRange();
+            range.setStart(nextPara, 0);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            body.focus();
+        }
+
+        markUnsaved(); updateStats();
+        setTimeout(() => blockEl.querySelector('.an-block-title-input')?.focus(), 40);
+    }
+
+    // ─── Float menu ───────────────────────────────────────────────────────────────
+    let savedRange = null;
+
+    function showInsertMenu(evt, type) {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange();
+        insertBlockAtCursor(type);
+    }
+
+    function insertBlockFromFloat(type) {
+        hideFloat();
+        if (savedRange) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(savedRange);
+        }
+        insertBlockAtCursor(type);
+    }
+
+    function hideFloat() {
+        document.getElementById('block-insert-float').classList.remove('visible');
+        floatVisible = false;
+    }
+
+    // ─── Delete / move block ──────────────────────────────────────────────────────
+    function deleteBlock(id) {
+        const el = document.getElementById('entry-body').querySelector(`[data-block-id="${id}"]`);
+        if (el) { el.remove(); markUnsaved(); updateStats(); }
+    }
+
+    function moveBlock(id, dir) {
+        const body = document.getElementById('entry-body');
+        const el   = body.querySelector(`[data-block-id="${id}"]`);
+        if (!el) return;
+        if (dir === -1 && el.previousSibling) body.insertBefore(el, el.previousSibling);
+        else if (dir === 1 && el.nextSibling)  body.insertBefore(el.nextSibling, el);
+        markUnsaved(); updateStats();
+    }
+
+    // ─── Tag helpers ──────────────────────────────────────────────────────────────
+    function addTag(blockId) {
+        const tag = prompt('New tag:');
+        if (!tag?.trim()) return;
+        const body   = document.getElementById('entry-body');
+        const el     = body.querySelector(`[data-block-id="${blockId}"]`);
+        if (!el) return;
+        const row    = el.querySelector(`#tagrow-${blockId}`);
+        if (!row) return;
+        const addBtn = row.querySelector('.an-tag-add');
+        const tagIdx = row.querySelectorAll('.an-tag').length;
+        const span   = document.createElement('span');
+        span.className = 'an-tag';
+        span.innerHTML = `${esc(tag.trim())} <button class="an-tag-remove" onclick="removeTag('${blockId}',${tagIdx})">✕</button>`;
+        row.insertBefore(span, addBtn || null);
+        markUnsaved();
+    }
+
+    function removeTag(blockId, i) {
+        const body = document.getElementById('entry-body');
+        const el   = body.querySelector(`[data-block-id="${blockId}"]`);
+        const tags = el?.querySelectorAll('.an-tag');
+        if (tags && tags[i]) { tags[i].remove(); markUnsaved(); }
+    }
+
+    // ─── Image helpers ────────────────────────────────────────────────────────────
+    function loadImageFile(event, blockId) {
+        const file = event.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const body    = document.getElementById('entry-body');
+            const el      = body.querySelector(`[data-block-id="${blockId}"]`);
+            if (!el) return;
+            const bodyDiv = el.querySelector('.an-block-body');
+            const data    = readBlockDataFromEl(el);
+            data.src      = e.target.result;
+            bodyDiv.innerHTML = buildBlockBody(blockId, 'IMAGE', data, false);
+            markUnsaved();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function dropImageFile(event, blockId) {
+        event.preventDefault(); event.stopPropagation();
+        document.getElementById(`imgzone-${blockId}`)?.classList.remove('drag-over');
+        const file = event.dataTransfer.files[0];
+        if (!file?.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const body    = document.getElementById('entry-body');
+            const el      = body.querySelector(`[data-block-id="${blockId}"]`);
+            if (!el) return;
+            const bodyDiv = el.querySelector('.an-block-body');
+            const data    = readBlockDataFromEl(el);
+            data.src      = e.target.result;
+            bodyDiv.innerHTML = buildBlockBody(blockId, 'IMAGE', data, false);
+            markUnsaved();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ─── Keyboard guards (backspace/delete near blocks) ───────────────────────────
+    document.getElementById('entry-body').addEventListener('keydown', function(e) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+
+        if (e.key === 'Backspace' && range.startOffset === 0) {
+            let node = range.startContainer;
+            const prev = node.previousSibling || node?.parentNode?.previousSibling;
+            if (prev?.classList?.contains('an-block')) { e.preventDefault(); return; }
+        }
+        if (e.key === 'Delete') {
+            let node   = range.startContainer;
+            const isAtEnd = range.startOffset === (node.textContent?.length || 0)
+                || range.startOffset === node.childNodes?.length;
+            if (isAtEnd) {
+                const next = node.nextSibling || node?.parentNode?.nextSibling;
+                if (next?.classList?.contains('an-block')) { e.preventDefault(); return; }
+            }
+        }
+        markUnsaved();
+    });
+
+    document.getElementById('entry-body').addEventListener('input', markUnsaved);
+
+    // Close float on outside click
+    document.addEventListener('click', function(e) {
+        const f = document.getElementById('block-insert-float');
+        if (!f.contains(e.target) && floatVisible) hideFloat();
+    });
+
+    // ─── Find node in tree ────────────────────────────────────────────────────────
+    function findNode(node, id) {
+        if (!node) return null;
+        if (node.nodeId === id) return node;
+        for (const c of (node.children || [])) {
+            const r = findNode(c, id);
+            if (r) return r;
+        }
+        return null;
+    }
+
+    // ─── Load entry ───────────────────────────────────────────────────────────────
+    async function loadEntry() {
+        try {
+            const latest = await CivAPI.getLatest(civId);
+            const tree   = typeof latest.serializedTree === 'string'
+                ? JSON.parse(latest.serializedTree) : latest.serializedTree;
+
+            currentNode = findNode(tree, nodeId);
+            if (!currentNode) { showToast('Entry not found', 'error'); return; }
+
+            const d = currentNode.data || {};
+
+            const titleEl = document.getElementById('entry-title');
+            titleEl.value = d.title || '';
+            autoResize(titleEl);
+            document.getElementById('topbar-docname').textContent = d.title || 'Untitled entry';
+            document.getElementById('bc-entry').textContent       = d.title || 'Entry';
+
+            document.getElementById('meta-start').value = d.startYear ?? '';
+            document.getElementById('meta-end').value   = d.endYear   ?? '';
+            liveYearUpdate();
+
+            const blocks = Array.isArray(d.blocks) ? d.blocks : [];
+            buildBodyFromData('', blocks, !canEdit);
+
+            if (!canEdit) {
+                document.getElementById('sb-readonly').style.display   = 'block';
+                document.getElementById('sb-blocks').style.display     = 'none';
+                document.getElementById('format-toolbar').style.display = 'none';
+                document.getElementById('entry-title').readOnly        = true;
+                document.getElementById('entry-body').contentEditable  = 'false';
+                document.getElementById('meta-start').readOnly         = true;
+                document.getElementById('meta-end').readOnly           = true;
+            }
+
+            updateStats();
+            setSaveStatus('saved', 'All saved');
+            setTimeout(() => document.getElementById('loading-overlay').classList.add('hidden'), 400);
+
+        } catch(err) {
+            showToast(err.message || 'Failed to load entry', 'error');
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+    }
+
+    // ─── Share ────────────────────────────────────────────────────────────────────
+    function handleShare() {
+        const url = window.location.href;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard', 'success'));
+        } else {
+            showToast('Copy this URL to share: ' + url, 'info');
+        }
+    }
+
+    // ─── Toast ────────────────────────────────────────────────────────────────────
+    function showToast(message, type = 'info') {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className   = `toast toast-${type}`;
+        t.textContent = message;
+        c.appendChild(t);
+        setTimeout(() => {
+            t.style.transition = 'opacity 0.2s';
+            t.style.opacity    = '0';
+            setTimeout(() => t.remove(), 220);
+        }, 3500);
+    }
+
+    // ─── Title input ──────────────────────────────────────────────────────────────
+    document.getElementById('entry-title').addEventListener('input', function() {
+        autoResize(this);
+        const v = this.value || 'Untitled entry';
+        document.getElementById('topbar-docname').textContent = v;
+        document.getElementById('bc-entry').textContent       = v;
+        markUnsaved();
+    });
+
+    // ─── Keyboard shortcuts ───────────────────────────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (canEdit) doSave();
+        }
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // ─── Role resolution + boot ───────────────────────────────────────────────────
+    async function resolveEffectiveRole() {
+        if (jwtRole === 'ADMIN') { canEdit = true; return; }
+        try {
+            const editors = await CivAPI.getEditors(civId);
+            const myEmail = Auth.getPayload()?.sub || '';
+            if (editors.some(e => (e.editor || {}).email === myEmail)) canEdit = true;
+        } catch {}
+    }
+
+    async function boot() {
+        await resolveEffectiveRole();
+        await loadEntry();
+    }
+
+    boot();
+</script>
+</body>
+</html>

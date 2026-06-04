@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AksharaNexus — Civilizational Knowledge Archive</title>
+    <link rel="stylesheet" href="css/index.css" />
+</head>
+<body>
+
+<!-- Top strip -->
+<div class="strip">
+    Currently accepting partner institutions for early access.
+    <a href="register-admin.html">Apply here →</a>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+    <a href="index.html" class="nav-logo">AksharaNexus</a>
+    <div class="nav-right">
+        <a href="#about" class="nav-hide">About</a>
+        <a href="#how-it-works" class="nav-hide">How it works</a>
+        <a href="login.html">Sign in</a>
+        <a href="register.html" class="nav-cta">Join as Researcher</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<div class="container">
+    <section class="hero">
+        <div class="hero-kicker">Civilizational Knowledge Archive</div>
+        <h1>Structured, versioned, institution-attributed historical data</h1>
+        <p class="hero-body">
+            AksharaNexus is a platform for universities and research institutions to collaboratively document civilization history — with the rigor of academic authorship and the traceability of version control.
+        </p>
+        <p class="hero-note">
+            All content is authored by verified researchers affiliated with registered institutions. Anonymous contributions are not permitted.
+        </p>
+        <div class="hero-actions">
+            <a href="register-admin.html" class="btn-primary">Register your institution</a>
+            <a href="register.html" class="btn-secondary">Join as a researcher</a>
+        </div>
+    </section>
+</div>
+
+<!-- About -->
+<div class="container" id="about">
+    <section class="section">
+        <div class="section-label">About</div>
+        <h2>What is AksharaNexus?</h2>
+
+        <p class="about-text">
+            Historical knowledge is fragmented. It exists across papers, dissertations, institutional repositories, and wikis — with no consistent structure, no clear authorship, and no way to track how our understanding of a civilization has changed over time.
+        </p>
+
+        <div class="pull-quote">
+            The fundamental problem with Wikipedia is not accuracy — it is accountability. There is no way to know whether a given passage was written by a domain expert or not.
+        </div>
+
+        <p class="about-text">
+            AksharaNexus addresses this by restricting authorship to verified researchers and students affiliated with registered universities. Every piece of data is committed with a name, an institution, a timestamp, and a message — making the provenance of every claim traceable.
+        </p>
+
+        <p class="about-text">
+            The structured data produced here will feed a central archive that is clean enough to power AI-assisted querying for end users — researchers, students, and the general public.
+        </p>
+    </section>
+</div>
+
+<!-- How it works -->
+<div class="container" id="how-it-works">
+    <section class="section">
+        <div class="section-label">Process</div>
+        <h2>How it works</h2>
+        <p class="section-intro">
+            Data on AksharaNexus follows a structured pipeline from institutional onboarding to the central archive.
+        </p>
+
+        <ol class="steps-list">
+            <li class="step-item">
+                <span class="step-num-col"></span>
+                <div class="step-body">
+                    <h4>Institutions register and are verified</h4>
+                    <p>Universities and research bodies apply for access. Once approved, an institutional admin account is created. Admins are responsible for managing their institution's presence on the platform.</p>
+                </div>
+            </li>
+            <li class="step-item">
+                <span class="step-num-col"></span>
+                <div class="step-body">
+                    <h4>Admins create civilization trees and assign researchers</h4>
+                    <p>Each civilization is represented as a hierarchical tree — a Root node with Volumes (broad periods or themes) and Entries (specific settlements, events, artifacts). Admins assign editor roles to verified researchers within their institution.</p>
+                </div>
+            </li>
+            <li class="step-item">
+                <span class="step-num-col"></span>
+                <div class="step-body">
+                    <h4>Editors contribute attributed, versioned content</h4>
+                    <p>Editors add and modify nodes in the tree. Every change produces a commit — a record containing the author's identity, their institution, a timestamp, a commit message, and a SHA-256 hash of the tree state. Any prior state can be restored.</p>
+                </div>
+            </li>
+            <li class="step-item">
+                <span class="step-num-col"></span>
+                <div class="step-body">
+                    <h4>Validated data enters the central archive</h4>
+                    <p>Contributions from all institutions are consolidated, deduplicated, and cleaned into a central dataset. This dataset will power a public-facing application allowing end users to query civilizational history with natural language.</p>
+                </div>
+            </li>
+        </ol>
+    </section>
+</div>
+
+<!-- Data model -->
+<div class="container">
+    <section class="section">
+        <div class="section-label">Data model</div>
+        <h2>How knowledge is structured</h2>
+        <p class="section-intro">
+            Every civilization on AksharaNexus is stored as a persistent tree. The structure is hierarchical, navigable, and designed to be queryable by both humans and AI systems.
+        </p>
+
+        <div class="model-box">
+            <div class="node-root">◆ Indus Valley Civilization &nbsp;&nbsp;<span style="color:var(--faint);font-weight:400;font-size:0.7rem;">ROOT · 3300 BCE – 1300 BCE</span></div>
+            <div class="node-vol">├─ Early Harappan Period &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">VOLUME · 3300–2600 BCE</span></div>
+            <div class="node-entry">├─ Mehrgarh Settlement &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">ENTRY</span></div>
+            <div class="node-entry">└─ Kot Diji Phase &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">ENTRY</span></div>
+            <div class="node-vol">└─ Mature Harappan Period &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">VOLUME · 2600–1900 BCE</span></div>
+            <div class="node-entry">├─ Mohenjo-daro &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">ENTRY</span></div>
+            <div class="node-entry">└─ Harappa City &nbsp;&nbsp;<span style="color:var(--faint);font-size:0.7rem;">ENTRY</span></div>
+            <div class="node-commit">⎇ a3f9c12e · "Add Harappa city entry" · Dr. Mehta, IIT Bombay</div>
+        </div>
+    </section>
+</div>
+
+<!-- Roles -->
+<div class="container">
+    <section class="section">
+        <div class="section-label">Access model</div>
+        <h2>Roles and permissions</h2>
+        <p class="section-intro">
+            Every person on AksharaNexus has a clearly defined role within their institution.
+        </p>
+
+        <table class="roles-table">
+            <thead>
+            <tr>
+                <th>Role</th>
+                <th>Who</th>
+                <th>What they can do</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>
+                    <span class="role-name">Admin</span>
+                    <span class="role-tag tag-admin">admin</span>
+                </td>
+                <td>Institutional representative — department head, principal investigator, or faculty lead.</td>
+                <td>
+                    <ul class="perms-list">
+                        <li>Create and manage civilization trees</li>
+                        <li>Assign and revoke editor access</li>
+                        <li>Rollback to any prior version</li>
+                        <li>View all contributions from their institution</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="role-name">Editor</span>
+                    <span class="role-tag tag-editor">editor</span>
+                </td>
+                <td>Verified researcher or doctoral student assigned to specific civilization trees by their admin.</td>
+                <td>
+                    <ul class="perms-list">
+                        <li>Add volumes and entries to assigned trees</li>
+                        <li>Edit existing nodes with commit messages</li>
+                        <li>View full version history of assigned trees</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="role-name">Viewer</span>
+                    <span class="role-tag tag-viewer">viewer</span>
+                </td>
+                <td>Affiliated student or observer with read-only access to their institution's trees.</td>
+                <td>
+                    <ul class="perms-list">
+                        <li>Browse civilization trees and entries</li>
+                        <li>Explore version history</li>
+                        <li>No write or administrative access</li>
+                    </ul>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<!-- CTA -->
+<section class="cta-section">
+    <div class="cta-inner">
+        <div class="cta-text">
+            <h2>Ready to contribute?</h2>
+            <p>Register your institution or join an existing one as a researcher.</p>
+        </div>
+        <div class="cta-buttons">
+            <a href="register.html" class="btn-inv">Join as Researcher</a>
+            <a href="register-admin.html" class="btn-inv-ghost">Register Institution</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="footer-left">© 2025 AksharaNexus · Commissioned by Passion Infotech</div>
+    <div class="footer-links">
+        <a href="login.html">Sign In</a>
+        <a href="register.html">Register</a>
+        <a href="register-admin.html">Institutions</a>
+    </div>
+</footer>
+
+<script src="js/api.js"></script>
+<script>
+    if (typeof Auth !== 'undefined' && Auth.getToken()) {
+        document.querySelector('.nav-right').innerHTML =
+            '<a href="dashboard.html" class="nav-cta">Go to dashboard →</a>';
+    }
+</script>
+</body>
+</html>

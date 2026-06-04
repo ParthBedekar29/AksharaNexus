@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle — AksharaNexus</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/chat.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+<nav class="chat-nav">
+    <div class="chat-nav-left">
+        <span class="chat-nav-brand">AksharaNexus</span>
+        <span class="chat-nav-label">Oracle</span>
+    </div>
+    <div class="chat-nav-right">
+        <span class="chat-nav-user" id="user-name"></span>
+        <a href="#" class="chat-nav-logout" id="logout-btn">Sign out</a>
+    </div>
+</nav>
+<div class="chat-messages" id="chat-messages">
+    <div class="chat-empty" id="chat-empty">
+        <span class="chat-empty-glyph">𓂀</span>
+        <h2>Ask the Oracle</h2>
+        <p>Query civilizations, events, governance, trade routes, and more — with cited sources.</p>
+    </div>
+</div>
+<div class="chat-input-area">
+    <div class="chat-input-wrap">
+        <textarea
+                id="chat-input"
+                class="chat-textarea"
+                placeholder="Ask about any civilization…"
+                rows="1"
+        ></textarea>
+        <button id="send-btn" class="chat-send-btn" aria-label="Send">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </button>
+    </div>
+</div>
+<script src="js/api.js"></script>
+<script src="js/chat.js"></script>
+</body>
+</html>

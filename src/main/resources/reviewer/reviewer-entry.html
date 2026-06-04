@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entry Review — AksharaNexus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css"/>
+    <style>
+        /* ── Layout shells not in style.css ── */
+        .editor-topbar {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: var(--nav-h);
+            background: var(--nav-dark);
+            border-bottom: 1px solid var(--nav-border);
+            display: flex; align-items: center; gap: 14px;
+            padding: 0 24px; z-index: 100;
+        }
+        .topbar-icon {
+            width: 26px; height: 26px; background: var(--teal); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .topbar-icon svg { width: 13px; height: 13px; fill: #fff; }
+        .topbar-meta { flex: 1; min-width: 0; }
+        .topbar-docname {
+            font-size: 0.875rem; font-weight: 500; color: #F8FAFC;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+        }
+        .topbar-breadcrumb-row {
+            font-family: var(--mono); font-size: 0.62rem; color: #64748B;
+            display: flex; align-items: center; gap: 4px; margin-top: 2px;
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .bc-sep { color: #1E293B; }
+        .topbar-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+        .editor-shell { display: flex; height: 100vh; padding-top: var(--nav-h); }
+
+        /* ── Left sidebar ── */
+        .left-sidebar {
+            width: 220px; flex-shrink: 0;
+            background: var(--card); border-right: 1px solid var(--rule);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .sidebar-section-inner { padding: 18px 18px 14px; border-bottom: 1px solid var(--rule); }
+        .sidebar-meta-field { margin-bottom: 10px; }
+        .sidebar-meta-field label {
+            font-family: var(--mono); font-size: 0.62rem; color: var(--faint);
+            display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .meta-val-box {
+            font-family: var(--mono); font-size: 0.78rem; color: var(--ink);
+            padding: 6px 10px; background: var(--bg); border: 1px solid var(--rule); border-radius: 4px;
+        }
+        .period-display {
+            margin-top: 12px; padding: 9px 12px;
+            background: var(--teal-bg); border-radius: var(--radius);
+            border: 1px solid rgba(15,118,110,0.15);
+            display: flex; flex-direction: column; gap: 3px;
+        }
+        .pd-label { font-size: 0.62rem; color: var(--teal); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
+        .pd-value { font-family: var(--mono); font-size: 0.75rem; color: var(--ink); font-weight: 500; }
+
+        .stat-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 7px 0; border-bottom: 1px solid var(--rule);
+        }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label-sm { font-size: 0.8rem; color: var(--muted); }
+        .stat-val-sm { font-family: var(--mono); font-size: 0.75rem; color: var(--ink); font-weight: 500; }
+
+        /* ── Canvas ── */
+        .canvas-area { flex: 1; overflow-y: auto; background: var(--bg); display: flex; flex-direction: column; }
+
+        .review-action-bar {
+            background: var(--card); border-bottom: 1px solid var(--rule);
+            padding: 12px 36px; display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .action-bar-left h4 { font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+        .action-bar-left p  { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+        .action-buttons-group { display: flex; gap: 10px; }
+
+        .doc-paper { max-width: 740px; width: 100%; margin: 0 auto; padding: 44px 36px 100px; }
+
+        .entry-title-display {
+            font-family: var(--serif); font-size: 2.2rem; font-weight: 400;
+            line-height: 1.15; color: var(--ink); margin-bottom: 28px;
+            letter-spacing: -0.02em; border-bottom: 1px solid var(--rule); padding-bottom: 18px;
+        }
+        .entry-body {
+            font-family: var(--serif); font-size: 1rem;
+            line-height: 1.8; color: var(--ink); min-height: 200px;
+        }
+        .entry-body p { margin-bottom: 1.2em; text-align: justify; }
+
+        /* ── Structured blocks ── */
+        .an-block {
+            margin: 24px 0; border: 1px solid var(--rule); border-radius: var(--radius);
+            overflow: hidden; background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .an-block-header {
+            padding: 9px 16px; background: var(--bg); border-bottom: 1px solid var(--rule);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .an-block-badge {
+            font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em;
+            text-transform: uppercase; padding: 2px 8px; border-radius: 3px; font-weight: 500;
+        }
+        .an-block[data-type="EVENT"]  .an-block-badge { background: var(--rev-bg);  color: var(--rev-ink); }
+        .an-block[data-type="ERA"]    .an-block-badge { background: var(--teal-bg); color: var(--teal); }
+        .an-block[data-type="ASPECT"] .an-block-badge { background: var(--pend-bg); color: var(--pend-ink); }
+        .an-block[data-type="IMAGE"]  .an-block-badge { background: var(--rej-bg);  color: var(--rej-ink); }
+
+        .an-block-title { font-size: 0.875rem; font-weight: 500; color: var(--ink); }
+        .an-block-body  { padding: 16px 18px; }
+        .an-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 10px; }
+
+        .an-field-label {
+            font-size: 0.62rem; color: var(--faint); display: block; margin-bottom: 3px;
+            text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--mono);
+        }
+        .an-field-val { font-size: 0.875rem; color: var(--ink); }
+        .an-description { font-size: 0.875rem; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+
+        .an-era-bar {
+            margin-top: 14px; height: 2px;
+            background: linear-gradient(90deg, var(--teal), transparent);
+            border-radius: 2px;
+        }
+        .an-tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .an-tag {
+            font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.02em;
+            padding: 3px 8px; background: var(--bg); border: 1px solid var(--rule);
+            border-radius: 4px; color: var(--muted);
+        }
+        .an-image-container {
+            background: var(--bg); padding: 10px; border-radius: 4px;
+            border: 1px solid var(--rule);
+        }
+        .an-image-preview { max-width: 100%; border-radius: 2px; display: block; margin: 0 auto; }
+        .an-image-caption { font-size: 0.78rem; color: var(--faint); margin-top: 8px; font-style: italic; text-align: center; }
+
+        /* ── Citations ── */
+        .an-citations-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--rule); }
+        .an-citations-label {
+            font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--faint); display: block; margin-bottom: 8px;
+        }
+        .an-citation-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 7px 0; border-bottom: 1px solid var(--rule);
+            font-size: 0.8rem;
+        }
+        .an-citation-item:last-child { border-bottom: none; }
+        .an-citation-num { font-family: var(--mono); font-size: 0.65rem; color: var(--faint); min-width: 18px; padding-top: 2px; }
+        .an-citation-summary { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; align-items: center; }
+        .cit-author { font-weight: 500; color: var(--ink); }
+        .cit-source { color: var(--muted); font-style: italic; }
+        .cit-year   { color: var(--muted); font-family: var(--mono); font-size: 0.7rem; }
+        .cit-quality {
+            font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.04em;
+            text-transform: uppercase; padding: 2px 6px; border-radius: 3px; font-weight: 500;
+        }
+        .cit-quality--primary   { background: var(--pub-bg); color: var(--pub-ink); }
+        .cit-quality--secondary { background: var(--pend-bg); color: var(--pend-ink); }
+        .cit-quality--tertiary  { background: var(--draft-bg); color: var(--draft-ink); }
+        .an-cit-url { font-family: var(--mono); font-size: 0.68rem; color: var(--teal); width: 100%; margin-top: 2px; }
+        .an-cit-url a { text-decoration: none; color: inherit; }
+        .an-cit-url a:hover { text-decoration: underline; }
+        .an-citations-empty { font-size: 0.78rem; color: var(--faint); font-style: italic; }
+
+        /* ── Loading overlay ── */
+        .loading-overlay {
+            position: fixed; inset: 0; z-index: 999; background: var(--bg);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 14px; transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-logo { font-family: var(--serif); font-size: 1.5rem; color: var(--ink); }
+        .loading-logo em { color: var(--teal); font-style: italic; }
+        .loading-sub { font-size: 0.72rem; color: var(--faint); font-family: var(--mono); letter-spacing: 0.08em; }
+        .spinner { width: 22px; height: 22px; border: 2px solid var(--rule); border-top-color: var(--ink); border-radius: 50%; animation: spin .6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Status badge on workflow bar */
+        .entry-status-badge {
+            display: inline-block; font-family: var(--mono); font-size: 0.72rem;
+            letter-spacing: 0.05em; padding: 3px 9px; border-radius: 3px;
+            white-space: nowrap; font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-logo">Akshara<em>Nexus</em></div>
+    <div class="spinner"></div>
+    <div class="loading-sub">RESOLVING ARCHIVAL VERSION…</div>
+</div>
+
+<div class="editor-topbar">
+    <div class="topbar-icon">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2"    width="12" height="1.5" rx="0.5"/>
+            <rect x="2" y="5.25" width="12" height="1.5" rx="0.5"/>
+            <rect x="2" y="8.5"  width="8"  height="1.5" rx="0.5"/>
+            <rect x="2" y="11.75"width="10" height="1.5" rx="0.5"/>
+        </svg>
+    </div>
+    <div class="topbar-meta">
+        <span class="topbar-docname" id="topbar-docname">Entry</span>
+        <div class="topbar-breadcrumb-row">
+            <span id="bc-civ">Civilization</span>
+            <span class="bc-sep">/</span>
+            <span id="bc-vol">Volume</span>
+            <span class="bc-sep">/</span>
+            <span id="bc-entry">Entry</span>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <span class="nav-context">Reviewer</span>
+        <a class="nav-sign-out" id="btn-back" href="#">← Return to Index</a>
+    </div>
+</div>
+
+<div class="editor-shell">
+
+    <aside class="left-sidebar" id="left-sidebar">
+        <div class="sidebar-section-inner">
+            <span class="section-label" style="margin:0 0 12px">Temporal Bounds</span>
+            <div class="sidebar-meta-field">
+                <label>Epoch Start</label>
+                <div class="meta-val-box" id="meta-start-display">—</div>
+            </div>
+            <div class="sidebar-meta-field">
+                <label>Epoch Closure</label>
+                <div class="meta-val-box" id="meta-end-display">—</div>
+            </div>
+            <div class="period-display">
+                <span class="pd-label">Computed Era Horizon</span>
+                <span class="pd-value" id="date-computed">—</span>
+            </div>
+        </div>
+
+        <div class="sidebar-section-inner">
+            <span class="section-label" style="margin:0 0 10px">Structural Metrics</span>
+            <div class="stat-row"><span class="stat-label-sm">Word count</span><span class="stat-val-sm" id="cnt-words">0</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Delta span</span><span class="stat-val-sm" id="cnt-span">—</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Archival blocks</span><span class="stat-val-sm" id="cnt-total">0</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Events</span><span class="stat-val-sm" id="cnt-EVENT">0</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Eras</span><span class="stat-val-sm" id="cnt-ERA">0</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Aspects</span><span class="stat-val-sm" id="cnt-ASPECT">0</span></div>
+            <div class="stat-row"><span class="stat-label-sm">Images</span><span class="stat-val-sm" id="cnt-IMAGE">0</span></div>
+        </div>
+    </aside>
+
+    <main class="canvas-area" id="canvas-area">
+        <div class="review-action-bar">
+            <div class="action-bar-left">
+                <h4>Workflow Control</h4>
+                <p id="workflow-status-desc">Evaluate the entry before committing a decision.</p>
+            </div>
+            <div class="action-buttons-group">
+                <button class="decision-btn revise" id="btn-action-review">Submit Review Decision</button>
+                <button class="btn-submit" id="btn-action-publish">Link to Central</button>
+            </div>
+        </div>
+
+        <div class="doc-paper" id="doc-paper">
+            <div class="entry-title-display" id="entry-title-display">Loading Entry…</div>
+            <div class="entry-body" id="entry-body"></div>
+        </div>
+    </main>
+
+</div>
+
+<!-- Publish modal -->
+<div class="modal-overlay" id="publish-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Select Target Timeline</h3>
+            <button class="modal-close" id="btn-modal-cancel">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.82rem;color:var(--faint);line-height:1.5">
+                Assign this historical entry to one of your active civilization models. This commits the entry to that node's public registry.
+            </p>
+            <div class="form-group">
+                <label for="modal-civ-select">Active Civilization Registries</label>
+                <select id="modal-civ-select">
+                    <option value="" disabled selected>Loading active nodes…</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btn-modal-cancel-2">Abort</button>
+            <button class="btn-submit" id="btn-modal-confirm">Commit to Registry</button>
+        </div>
+    </div>
+</div>
+
+<!-- Review decision modal -->
+<div class="modal-overlay" id="review-decision-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Submit Review Decision</h3>
+            <button class="modal-close" id="btn-review-cancel-x">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.82rem;color:var(--faint);line-height:1.5">
+                Commit your review status to the source history timeline.
+            </p>
+            <div class="form-group">
+                <label for="modal-status-select">Review Status</label>
+                <select id="modal-status-select">
+                    <option value="REJECTED">Reject Entry</option>
+                    <option value="REVISION_REQUESTED">Request Revision</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="modal-review-note">Reviewer Note</label>
+                <textarea id="modal-review-note" placeholder="Provide an explanation for your decision (required for rejection / revision requests)…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" id="btn-review-cancel">Abort</button>
+            <button class="btn-submit" id="btn-review-confirm">Submit Decision</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script type="module">
+    import { isLoggedIn, getVersionDetail, getCentralCivilizationsForReviewer, markEntryForCentral, markEntry, getMyMarks } from './api.js';
+
+    if (!isLoggedIn()) { window.location.href = 'login.html'; }
+
+    const params    = new URLSearchParams(window.location.search);
+    const versionId = params.get('versionId');
+    const nodeId    = params.get('nodeId');
+    const civTitle  = decodeURIComponent(params.get('civTitle') || 'Civilization');
+    const volTitle  = decodeURIComponent(params.get('volTitle') || 'Volume');
+
+    if (!versionId || !nodeId) window.location.href = 'dashboard.html';
+
+    const backUrl = `reviewer-civilization.html?versionId=${versionId}&civTitle=${encodeURIComponent(civTitle)}`;
+    document.getElementById('btn-back').href = backUrl;
+    document.getElementById('bc-civ').textContent   = civTitle;
+    document.getElementById('bc-vol').textContent   = volTitle;
+
+    let initializedNodeData = null;
+    const publishModal = document.getElementById('publish-modal');
+    const civSelectDropdown = document.getElementById('modal-civ-select');
+
+    const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    function formatYear(y) {
+        if (y == null || isNaN(y)) return '—';
+        return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+    }
+
+    function showToast(msg, type='info') {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.2s'; setTimeout(() => t.remove(), 200); }, 4000);
+    }
+
+    function findNode(node, id) {
+        if (!node) return null;
+        if (node.nodeId === id) return node;
+        for (const c of (node.children || [])) {
+            const r = findNode(c, id);
+            if (r) return r;
+        }
+        return null;
+    }
+
+    function buildCitationsSection(citations) {
+        const list = Array.isArray(citations) ? citations : [];
+        if (!list.length) return `<div class="an-citations-section"><span class="an-citations-label">Source Assertions</span><span class="an-citations-empty">No citations anchored to this block.</span></div>`;
+        const items = list.map((c, i) => `
+            <div class="an-citation-item">
+                <span class="an-citation-num">[${i+1}]</span>
+                <span class="an-citation-summary">
+                    ${c.author ? `<span class="cit-author">${esc(c.author)}</span>` : ''}
+                    ${c.source ? `<span class="cit-source">"${esc(c.source)}"</span>` : ''}
+                    ${c.year   ? `<span class="cit-year">(${esc(String(c.year))})</span>` : ''}
+                    ${c.quality ? `<span class="cit-quality cit-quality--${c.quality.toLowerCase()}">${esc(c.quality)}</span>` : ''}
+                    ${c.url    ? `<div class="an-cit-url"><a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.url)}</a></div>` : ''}
+                </span>
+            </div>`).join('');
+        return `<div class="an-citations-section"><span class="an-citations-label">Source Assertions</span>${items}</div>`;
+    }
+
+    function buildBlockHTML(b) {
+        const type = b.blockType || b.type || 'TEXT';
+        const d    = b.data || {};
+        const cits = b.citations || [];
+        if (type === 'TEXT') return d.html || '';
+
+        let bodyHTML = '';
+        switch(type) {
+            case 'EVENT':
+                bodyHTML = `<div class="an-two-col">
+                    <div><span class="an-field-label">Date</span><div class="an-field-val">${esc(d.date||'—')}</div></div>
+                    <div><span class="an-field-label">Location</span><div class="an-field-val">${esc(d.location||'—')}</div></div>
+                </div>${d.description?`<div class="an-description">${esc(d.description)}</div>`:''}${buildCitationsSection(cits)}`;
+                break;
+            case 'ERA':
+                bodyHTML = `<div class="an-two-col">
+                    <div><span class="an-field-label">Start</span><div class="an-field-val">${esc(String(d.startYear||'—'))}</div></div>
+                    <div><span class="an-field-label">End</span><div class="an-field-val">${esc(String(d.endYear||'—'))}</div></div>
+                </div>${d.description?`<div class="an-description">${esc(d.description)}</div>`:''}
+                <div class="an-era-bar"></div>${buildCitationsSection(cits)}`;
+                break;
+            case 'ASPECT': {
+                const tags = Array.isArray(d.tags) ? d.tags : [];
+                bodyHTML = `${d.description?`<div class="an-description">${esc(d.description)}</div>`:''}
+                ${tags.length?`<div class="an-tag-row">${tags.map(t=>`<span class="an-tag">${esc(t)}</span>`).join('')}</div>`:''}
+                ${buildCitationsSection(cits)}`;
+                break;
+            }
+            case 'IMAGE':
+                bodyHTML = `<div class="an-image-container">
+                    ${d.src?`<img class="an-image-preview" src="${esc(d.src)}" alt="${esc(d.caption||'')}"/>`:'<div style="padding:24px;text-align:center;color:var(--faint);font-family:var(--mono);font-size:0.78rem">IMAGE MISSING</div>'}
+                    ${d.caption?`<div class="an-image-caption">${esc(d.caption)}</div>`:''}
+                </div>${buildCitationsSection(cits)}`;
+                break;
+            default:
+                bodyHTML = `<div style="color:var(--rej-ink);font-family:var(--mono);font-size:0.78rem">UNKNOWN TYPE: ${esc(type)}</div>`;
+        }
+        return `<div class="an-block" data-type="${esc(type)}">
+            <div class="an-block-header">
+                <span class="an-block-badge">${esc(type)}</span>
+                ${d.title?`<span class="an-block-title">${esc(d.title)}</span>`:''}
+            </div>
+            <div class="an-block-body">${bodyHTML}</div>
+        </div>`;
+    }
+
+    function renderBlocks(blocks) {
+        const body = document.getElementById('entry-body');
+        if (!blocks || !blocks.length) {
+            body.innerHTML = '<p style="color:var(--faint);font-style:italic;text-align:center;padding:40px 0">No content blocks in this entry.</p>';
+            return;
+        }
+        body.innerHTML = blocks.map(buildBlockHTML).join('');
+    }
+
+    function updateStats(title, blocks) {
+        const body    = document.getElementById('entry-body');
+        const rawText = (title + ' ' + (body.textContent || '')).trim();
+        const words   = rawText.split(/\s+/).filter(Boolean).length;
+        document.getElementById('cnt-words').textContent = words.toLocaleString();
+        const nonText = (blocks||[]).filter(b => (b.blockType||b.type) !== 'TEXT');
+        document.getElementById('cnt-total').textContent = nonText.length;
+        ['EVENT','ERA','ASPECT','IMAGE'].forEach(t =>
+            document.getElementById(`cnt-${t}`).textContent = (blocks||[]).filter(b=>(b.blockType||b.type)===t).length
+        );
+    }
+
+    async function loadEntry() {
+        try {
+            const v = await getVersionDetail(versionId);
+            const tree = typeof v.serializedTree === 'string' ? JSON.parse(v.serializedTree) : v.serializedTree;
+            const node = findNode(tree, nodeId);
+            if (!node) { showToast('Entry node not found.', 'error'); return; }
+
+            initializedNodeData = node;
+            const d     = node.data || {};
+            const title = d.title || 'Unnamed Entry';
+            const blocks = Array.isArray(d.blocks) ? d.blocks : [];
+
+            document.getElementById('entry-title-display').textContent = title;
+            document.getElementById('topbar-docname').textContent      = title;
+            document.getElementById('bc-entry').textContent            = title;
+            document.title = `${title} — AksharaNexus`;
+
+            const startY = d.startYear, endY = d.endYear;
+            document.getElementById('meta-start-display').textContent = startY != null ? formatYear(startY) : '—';
+            document.getElementById('meta-end-display').textContent   = endY   != null ? formatYear(endY)   : '—';
+
+            if (startY != null && endY != null) {
+                document.getElementById('date-computed').textContent = `${formatYear(startY)} – ${formatYear(endY)}`;
+                document.getElementById('cnt-span').textContent      = `${Math.abs(endY-startY).toLocaleString()} yrs`;
+            } else {
+                document.getElementById('date-computed').textContent = 'Indeterminate';
+                document.getElementById('cnt-span').textContent      = '—';
+            }
+
+            renderBlocks(blocks);
+            updateStats(title, blocks);
+
+            try {
+                const marks = await getMyMarks();
+                const mark  = marks.find(m => m.versionId === versionId && m.nodeId === nodeId);
+                const statusDescEl = document.getElementById('workflow-status-desc');
+                if (mark) {
+                    const st = mark.markStatus.replace(/_/g,' ');
+                    const note = mark.reviewerNote ? ` — "${mark.reviewerNote}"` : '';
+                    statusDescEl.innerHTML = `Status: <strong class="status-badge status-${mark.markStatus}">${st}</strong>${note}`;
+                } else {
+                    statusDescEl.textContent = 'Status: UNREVIEWED — evaluate the entry before committing a decision.';
+                }
+            } catch(e) { console.error('Failed to load marks', e); }
+
+            setTimeout(() => document.getElementById('loading-overlay').classList.add('hidden'), 200);
+        } catch(err) {
+            showToast(err.message || 'Failed to resolve entry.', 'error');
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+    }
+
+    // ── Review decision modal ──
+    const reviewModal   = document.getElementById('review-decision-modal');
+    const statusSelect  = document.getElementById('modal-status-select');
+    const reviewNoteInput = document.getElementById('modal-review-note');
+
+    document.getElementById('btn-action-review').addEventListener('click', () => {
+        reviewModal.classList.add('open');
+    });
+    document.getElementById('btn-review-cancel').addEventListener('click', () => reviewModal.classList.remove('open'));
+    document.getElementById('btn-review-cancel-x').addEventListener('click', () => reviewModal.classList.remove('open'));
+    reviewModal.addEventListener('click', e => { if (e.target === reviewModal) reviewModal.classList.remove('open'); });
+
+    document.getElementById('btn-review-confirm').addEventListener('click', async () => {
+        const status = statusSelect.value;
+        const note   = reviewNoteInput.value.trim();
+        if ((status === 'REJECTED' || status === 'REVISION_REQUESTED') && !note) {
+            showToast('A note is required for rejections and revision requests.', 'error'); return;
+        }
+        const confirmBtn = document.getElementById('btn-review-confirm');
+        confirmBtn.disabled = true; confirmBtn.textContent = 'Submitting…';
+        try {
+            await markEntry({ versionId, nodeId, entryTitle: document.getElementById('entry-title-display').textContent, markStatus: status, reviewerNote: note });
+            showToast(`Decision submitted: ${status.replace(/_/g,' ')}`, 'success');
+            reviewModal.classList.remove('open');
+            const st = status.replace(/_/g,' ');
+            const noteText = note ? ` — "${note}"` : '';
+            document.getElementById('workflow-status-desc').innerHTML = `Status: <strong class="status-badge status-${status}">${st}</strong>${noteText}`;
+        } catch(err) {
+            showToast(err.message || 'Error submitting decision.', 'error');
+        } finally {
+            confirmBtn.disabled = false; confirmBtn.textContent = 'Submit Decision';
+        }
+    });
+
+    // ── Publish modal ──
+    document.getElementById('btn-action-publish').addEventListener('click', async () => {
+        publishModal.classList.add('open');
+        civSelectDropdown.innerHTML = '<option value="" disabled selected>Querying timeline nodes…</option>';
+        try {
+            const civilizations = await getCentralCivilizationsForReviewer();
+            if (!civilizations || civilizations.length === 0) {
+                civSelectDropdown.innerHTML = '<option value="" disabled>No active civilization timelines found</option>'; return;
+            }
+            civSelectDropdown.innerHTML = '<option value="" disabled selected>Select matching timeline…</option>';
+            civilizations.forEach(civ => {
+                const opt = document.createElement('option');
+                opt.value = civ.centralCivId;
+                opt.textContent = civ.title || civ.name || 'Unnamed Civilization';
+                civSelectDropdown.appendChild(opt);
+            });
+        } catch(err) {
+            showToast('Failed to fetch civilization registries.', 'error');
+            civSelectDropdown.innerHTML = '<option value="" disabled>Failed to load options</option>';
+        }
+    });
+
+    document.getElementById('btn-modal-confirm').addEventListener('click', async () => {
+        const targetCivId = civSelectDropdown.value;
+        if (!targetCivId) { showToast('Please select a target civilization.', 'error'); return; }
+        const targetCivName = civSelectDropdown.options[civSelectDropdown.selectedIndex].text;
+        const confirmBtn = document.getElementById('btn-modal-confirm');
+        const extractedTitle = document.getElementById('entry-title-display').textContent || 'Unnamed Entry';
+        confirmBtn.disabled = true; confirmBtn.textContent = 'Publishing…';
+        try {
+            if (typeof markEntryForCentral === 'function') {
+                await markEntryForCentral({ centralCivId: targetCivId, versionId, nodeId, entryTitle: extractedTitle });
+            } else {
+                throw new Error('API method markEntryForCentral not available.');
+            }
+            showToast(`Published into registry of "${targetCivName}".`, 'success');
+            publishModal.classList.remove('open');
+            document.getElementById('workflow-status-desc').innerHTML = `Status: <strong class="status-badge status-PUBLISHED">PUBLISHED</strong> — committed to central registry.`;
+        } catch(err) {
+            showToast(err.message || 'Error publishing entry.', 'error');
+        } finally {
+            confirmBtn.disabled = false; confirmBtn.textContent = 'Commit to Registry';
+        }
+    });
+
+    document.getElementById('btn-modal-cancel').addEventListener('click',   () => publishModal.classList.remove('open'));
+    document.getElementById('btn-modal-cancel-2').addEventListener('click', () => publishModal.classList.remove('open'));
+    publishModal.addEventListener('click', e => { if (e.target === publishModal) publishModal.classList.remove('open'); });
+
+    loadEntry();
+</script>
+</body>
+</html>

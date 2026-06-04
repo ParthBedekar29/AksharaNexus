@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>AksharaNexus — Reviewer Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="login-shell">
+    <div class="login-card">
+
+        <div class="login-logo">Akshara<em style="font-style:italic;color:var(--teal)">Nexus</em></div>
+        <div class="login-context">Reviewer Portal</div>
+
+        <h1 class="login-title">Sign in to your workspace</h1>
+        <p class="login-sub">Access your review queue and the central civilization archive.</p>
+
+        <div class="login-error" id="err"></div>
+
+        <form class="login-form" id="form" onsubmit="return false">
+            <div class="form-group">
+                <label for="email">Email address</label>
+                <input type="email" id="email" placeholder="reviewer@institution.edu" autocomplete="email" required/>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" required/>
+            </div>
+            <button class="btn-login" id="btn" type="submit">Sign in</button>
+        </form>
+
+        <p class="login-note">
+            New reviewer? <a href="register.html" style="color:var(--teal);font-weight:500">Create an account</a>
+        </p>
+
+    </div>
+</div>
+
+<script type="module">
+    import { login, isLoggedIn } from './api.js';
+    if (isLoggedIn()) window.location.href = 'dashboard.html';
+
+    const form = document.getElementById('form');
+    const btn  = document.getElementById('btn');
+    const err  = document.getElementById('err');
+
+    form.addEventListener('submit', async () => {
+        const email    = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        err.classList.remove('show');
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        try {
+            await login(email, password);
+            window.location.href = 'dashboard.html';
+        } catch(e) {
+            err.textContent = e.message || 'Invalid credentials';
+            err.classList.add('show');
+            btn.disabled = false; btn.textContent = 'Sign in';
+        }
+    });
+</script>
+</body>
+</html>

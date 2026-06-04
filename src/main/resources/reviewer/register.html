@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>AksharaNexus — Reviewer Registration</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="login-shell">
+    <div class="login-card" style="max-width:440px">
+
+        <div class="login-logo">Akshara<em style="font-style:italic;color:var(--teal)">Nexus</em></div>
+        <div class="login-context">Reviewer Portal</div>
+
+        <!-- Success state -->
+        <div id="success-state" style="display:none;text-align:center;padding:12px 0 8px">
+            <div style="font-size:2rem;margin-bottom:14px;color:var(--teal)">✦</div>
+            <h2 class="login-title" style="margin-bottom:8px">Account created</h2>
+            <p class="login-sub">Your reviewer account is ready.<br>Sign in to access your review queue.</p>
+            <a href="login.html" class="btn-login" style="display:inline-block;margin-top:8px;text-decoration:none;text-align:center">Go to Sign in</a>
+        </div>
+
+        <!-- Registration form -->
+        <div id="form-section">
+            <h1 class="login-title">Create your reviewer account</h1>
+            <p class="login-sub">You'll need a registration code issued by the AksharaNexus team for your email address.</p>
+
+            <div class="login-error" id="err"></div>
+
+            <form class="login-form" id="form" onsubmit="return false">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="firstName">First name</label>
+                        <input type="text" id="firstName" placeholder="Ada" autocomplete="given-name" required/>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last name</label>
+                        <input type="text" id="lastName" placeholder="Lovelace" autocomplete="family-name" required/>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" placeholder="reviewer@institution.edu" autocomplete="email" required/>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" autocomplete="new-password" required minlength="8"/>
+                </div>
+
+                <div class="form-group" style="background:var(--teal-bg);border:1.5px dashed var(--rule);border-radius:var(--radius);padding:14px 16px;">
+                    <label for="code" style="color:var(--teal)">⬡ &nbsp;Registration code</label>
+                    <input type="text" id="code" placeholder="Enter your secret registration code"
+                           autocomplete="off" spellcheck="false" required
+                           style="font-family:var(--mono);font-size:0.85rem;letter-spacing:0.06em;background:#fff"/>
+                    <p style="font-family:var(--mono);font-size:0.68rem;color:var(--faint);margin-top:8px;line-height:1.55">
+                        This code is issued by the AksharaNexus team and is tied to your email address. Each code can only be used once.
+                    </p>
+                </div>
+
+                <button class="btn-login" id="btn" type="submit" style="background:var(--teal)">Create account</button>
+            </form>
+        </div>
+
+        <p class="login-note">
+            Already have an account? <a href="login.html" style="color:var(--teal);font-weight:500">Sign in</a>
+        </p>
+
+    </div>
+</div>
+
+<script type="module">
+    import { register, isLoggedIn } from './api.js';
+
+    if (isLoggedIn()) window.location.href = 'dashboard.html';
+
+    const form         = document.getElementById('form');
+    const btn          = document.getElementById('btn');
+    const err          = document.getElementById('err');
+    const formSection  = document.getElementById('form-section');
+    const successState = document.getElementById('success-state');
+
+    function showError(msg) { err.textContent = msg; err.classList.add('show'); }
+    function hideError()    { err.classList.remove('show'); }
+
+    form.addEventListener('submit', async () => {
+        hideError();
+
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName  = document.getElementById('lastName').value.trim();
+        const email     = document.getElementById('email').value.trim();
+        const password  = document.getElementById('password').value;
+        const code      = document.getElementById('code').value.trim();
+
+        if (!firstName)          { showError('First name is required.'); return; }
+        if (!email)              { showError('Email address is required.'); return; }
+        if (password.length < 8) { showError('Password must be at least 8 characters.'); return; }
+        if (!code)               { showError('Registration code is required.'); return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Creating account…';
+
+        try {
+            await register(firstName, lastName, email, password, code);
+            formSection.style.display = 'none';
+            successState.style.display = 'block';
+        } catch(e) {
+            showError(e.message || 'Registration failed. Please check your details and code.');
+            btn.disabled = false;
+            btn.textContent = 'Create account';
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Review Civilization — AksharaNexus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css"/>
+    <style>
+        /* Layout primitives not covered by style.css dashboard patterns */
+        .civ-shell {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            height: calc(100vh - var(--nav-h));
+            margin-top: var(--nav-h);
+            overflow: hidden;
+        }
+        .col-center { display: flex; flex-direction: column; overflow: hidden; background: var(--card); }
+        .col-right  { border-left: 1px solid var(--rule); display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+
+        .civ-meta {
+            padding: 28px 32px 22px;
+            border-bottom: 1px solid var(--rule);
+            flex-shrink: 0;
+            background: var(--bg);
+        }
+        .civ-meta-title {
+            font-family: var(--serif);
+            font-size: 2rem;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin-bottom: 12px;
+            color: var(--ink);
+        }
+        .civ-meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+        .civ-meta-desc { font-size: 0.9rem; color: var(--muted); line-height: 1.6; max-width: 700px; }
+
+        .commit-box {
+            margin: 14px 32px 0;
+            padding: 11px 16px;
+            background: var(--card);
+            border: 1px solid var(--rule);
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-family: var(--mono);
+            flex-shrink: 0;
+        }
+        .commit-box strong { color: var(--ink); font-family: var(--sans); font-size: 0.8rem; }
+
+        .tree-container { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .tree-toolbar {
+            padding: 13px 32px;
+            border-bottom: 1px solid var(--rule);
+            display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0;
+            background: var(--card);
+        }
+
+        .tree-body { flex: 1; overflow-y: auto; padding: 20px 32px; }
+
+        /* Tree nodes */
+        .tree-node-wrap { margin-bottom: 3px; }
+        .tree-node-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; border-radius: 6px;
+            transition: background 0.1s;
+        }
+        .tree-node-row:hover { background: var(--bg); }
+        .tree-toggle {
+            width: 18px; height: 18px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--faint); font-size: 0.7rem;
+            transition: transform 0.15s; flex-shrink: 0;
+            background: none; border: none;
+        }
+        .tree-toggle.open { transform: rotate(90deg); }
+        .tree-toggle-spacer { width: 18px; flex-shrink: 0; }
+        .tree-node-glyph { color: var(--faint); font-size: 0.9rem; flex-shrink: 0; width: 18px; text-align: center; }
+        .tree-node-label { font-size: 0.9rem; color: var(--ink); flex: 1; }
+        .entry-label {
+            cursor: pointer; color: var(--teal);
+            text-decoration: underline; text-underline-offset: 3px;
+            text-decoration-color: transparent; transition: text-decoration-color 0.15s;
+        }
+        .entry-label:hover { text-decoration-color: var(--teal); }
+        .tree-node-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--faint); white-space: nowrap; flex-shrink: 0; }
+        .tree-children-wrap { padding-left: 28px; border-left: 1px dashed var(--rule); margin-left: 9px; }
+
+        /* Right panel */
+        .panel-header { padding: 18px 22px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
+        .commit-info { flex: 1; overflow-y: auto; }
+        .ci-section { padding: 16px 22px; border-bottom: 1px solid var(--rule); }
+        .ci-label { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 5px; }
+        .ci-val { font-size: 0.875rem; color: var(--ink); line-height: 1.5; word-break: break-word; }
+        .ci-val.mono { font-family: var(--mono); font-size: 0.78rem; }
+        .ci-val.muted { color: var(--muted); font-style: italic; }
+
+        .spinner { width: 22px; height: 22px; border: 2px solid var(--rule); border-top-color: var(--muted); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-brand">
+        <a href="dashboard.html" class="nav-sign-out" style="display:inline-flex;align-items:center;gap:4px">← Back</a>
+        <a href="dashboard.html" class="nav-logo">Akshara<em style="font-style:italic;color:var(--teal)">Nexus</em></a>
+        <span class="nav-sep">/</span>
+        <span class="nav-context" id="nav-civ-name">Loading…</span>
+    </div>
+    <div class="nav-right">
+        <span class="reviewer-chip" id="nav-reviewer">—</span>
+    </div>
+</nav>
+
+<div class="civ-shell">
+
+    <div class="col-center">
+        <div class="civ-meta" id="civ-meta">
+            <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+        <div class="commit-box" id="commit-box" style="display:none;">
+            <strong>Review Context: </strong><span id="commit-msg-text"></span>
+        </div>
+        <div class="tree-container">
+            <div class="tree-toolbar">
+                <span class="section-label" style="margin:0">Knowledge tree</span>
+                <span class="provenance-tag">read-only</span>
+            </div>
+            <div class="tree-body" id="tree-body">
+                <div class="empty-state">
+                    <div class="empty-icon">◈</div>
+                    <h3>Loading Knowledge Structure…</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-right">
+        <div class="panel-header">
+            <div class="section-label" style="margin:0 0 2px">Metadata Details</div>
+            <div style="font-size:0.78rem;color:var(--faint)">Submission Parameters</div>
+        </div>
+        <div class="commit-info" id="commit-info">
+            <div class="ci-section" style="padding:40px 18px;text-align:center;color:var(--faint);font-size:0.82rem">
+                Gathering version variables…
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script type="module">
+    import {
+        isLoggedIn, getReviewerEmail,
+        getVersionDetail, getVersionMarks
+    } from './api.js';
+
+    const versionMarksMap = new Map();
+
+    if (!isLoggedIn()) { window.location.href = 'login.html'; }
+
+    const params    = new URLSearchParams(window.location.search);
+    const versionId = params.get('versionId');
+    const civTitle  = params.get('civTitle') || '';
+
+    document.getElementById('nav-reviewer').textContent = getReviewerEmail();
+    if (civTitle) document.getElementById('nav-civ-name').textContent = decodeURIComponent(civTitle);
+
+    function formatYear(y) {
+        if (y == null) return '?';
+        return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+    }
+    function fmtDate(ts) {
+        if (!ts) return '—';
+        return new Date(ts).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+    }
+    function statusBadge(s) {
+        return `<span class="status-badge status-${s}">${s.replace(/_/g,' ')}</span>`;
+    }
+
+    async function loadReviewWorkspace() {
+        if (!versionId) {
+            document.getElementById('tree-body').innerHTML =
+                `<div class="empty-state"><div class="empty-icon">⚠</div><h3>Missing target identifier</h3><p>Please return to the dashboard and select a proper civilization package.</p></div>`;
+            return;
+        }
+        try {
+            const [v, marks] = await Promise.all([
+                getVersionDetail(versionId),
+                getVersionMarks(versionId).catch(() => [])
+            ]);
+
+            if (marks && Array.isArray(marks)) {
+                marks.forEach(m => { if (m.nodeId) versionMarksMap.set(m.nodeId, m.markStatus); });
+            }
+
+            if (v.civTitle) {
+                document.getElementById('nav-civ-name').textContent = v.civTitle;
+                document.title = `Review: ${v.civTitle} — AksharaNexus`;
+            }
+
+            renderMeta(v);
+            renderCommitBox(v);
+            renderTree(v);
+            renderCommitInfo(v);
+        } catch(e) {
+            document.getElementById('tree-body').innerHTML =
+                `<div class="empty-state"><div class="empty-icon">⚠</div><h3>Error parsing data structure</h3><p>${e.message}</p></div>`;
+        }
+    }
+
+    function renderMeta(v) {
+        document.getElementById('civ-meta').innerHTML = `
+            <div class="civ-meta-title">${v.civTitle || 'Untitled Civilization'}</div>
+            <div class="civ-meta-row">
+                <span class="version-hash">🏛 ${v.universityName || '—'}</span>
+                <span class="version-hash">👤 ${v.committedByName || '—'}</span>
+                ${statusBadge(v.reviewStatus)}
+            </div>
+            ${v.civDescription ? `<p class="civ-meta-desc">${v.civDescription}</p>` : ''}
+        `;
+    }
+
+    function renderCommitBox(v) {
+        const box = document.getElementById('commit-box');
+        if (v.commitMessage) {
+            document.getElementById('commit-msg-text').textContent = v.commitMessage;
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    function renderCommitInfo(v) {
+        document.getElementById('commit-info').innerHTML = `
+            <div class="ci-section"><div class="ci-label">Origin Institution</div><div class="ci-val">${v.universityName || '—'}</div></div>
+            <div class="ci-section">
+                <div class="ci-label">Contributor</div>
+                <div class="ci-val">${v.committedByName || '—'}</div>
+                <div class="ci-val muted" style="margin-top:2px">${v.committedByEmail || ''}</div>
+            </div>
+            <div class="ci-section"><div class="ci-label">Timestamp</div><div class="ci-val">${fmtDate(v.commitTimestamp)}</div></div>
+            <div class="ci-section"><div class="ci-label">Workflow State</div><div class="ci-val">${statusBadge(v.reviewStatus)}</div></div>
+            ${v.reviewerNote ? `<div class="ci-section"><div class="ci-label">Historical Logs</div><div class="ci-val">${v.reviewerNote}</div></div>` : ''}
+            <div class="ci-section"><div class="ci-label">Target Hash</div><div class="ci-val mono">${(v.hash || '').substring(0,16) || '—'}</div></div>
+        `;
+    }
+
+    function renderTree(v) {
+        const body = document.getElementById('tree-body');
+        let tree;
+        try {
+            tree = typeof v.serializedTree === 'string' ? JSON.parse(v.serializedTree) : v.serializedTree;
+        } catch {
+            body.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠</div><h3>Parse error</h3></div>`;
+            return;
+        }
+        if (!tree) {
+            body.innerHTML = `<div class="empty-state"><div class="empty-icon">◈</div><h3>No structure found</h3></div>`;
+            return;
+        }
+        body.innerHTML = renderTreeNode(tree, true, v);
+    }
+
+    function renderTreeNode(node, isRoot, version, parentData = null) {
+        if (!node) return '';
+        if (!node.data) return (node.children || []).map(c => renderTreeNode(c, false, version)).join('');
+
+        const d = node.data;
+        const isVolume = d.nodeType === 'VOLUME';
+        const isEntry  = d.nodeType === 'ENTRY';
+        const children = node.children || [];
+        const hasChildren = children.length > 0;
+
+        let glyph = '◆';
+        if (isVolume) glyph = '§';
+        if (isEntry)  glyph = '–';
+
+        const metaText = d.startYear != null ? `${formatYear(d.startYear)} – ${formatYear(d.endYear)}` : '';
+        const civTitleEnc = encodeURIComponent(version?.civTitle || '');
+        const volTitleEnc = encodeURIComponent(parentData?.title || d.title || '');
+        const entryUrl    = `reviewer-entry.html?versionId=${version?.versionId}&nodeId=${node.nodeId}&civTitle=${civTitleEnc}&volTitle=${volTitleEnc}`;
+
+        const status = versionMarksMap.get(node.nodeId);
+        const statusBadgeHtml = status
+            ? `<span class="tree-status-badge ${status}">${status.replace(/_/g,' ')}</span>`
+            : '';
+
+        const labelHtml = isEntry
+            ? `<span class="tree-node-label entry-label" onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>${statusBadgeHtml}`
+            : `<span class="tree-node-label" style="font-weight:${isVolume ? '500' : '400'}">${d.title || 'Untitled Structure'}</span>`;
+
+        const childrenHtml = hasChildren
+            ? `<div class="tree-children-wrap">${children.map(c => renderTreeNode(c, false, version, d)).join('')}</div>`
+            : '';
+
+        return `
+            <div class="tree-node-wrap">
+                <div class="tree-node-row">
+                    ${hasChildren ? `<button class="tree-toggle open" onclick="toggleNode(this)">&#9658;</button>` : `<span class="tree-toggle-spacer"></span>`}
+                    <span class="tree-node-glyph">${glyph}</span>
+                    ${labelHtml}
+                    ${metaText ? `<span class="tree-node-meta">${metaText}</span>` : ''}
+                </div>
+                ${childrenHtml}
+            </div>`;
+    }
+
+    window.toggleNode = function(btn) {
+        const row  = btn.closest('.tree-node-row');
+        const wrap = row.nextElementSibling;
+        if (!wrap) return;
+        const isOpen = btn.classList.contains('open');
+        btn.classList.toggle('open', !isOpen);
+        wrap.style.display = isOpen ? 'none' : '';
+    };
+
+    loadReviewWorkspace();
+</script>
+</body>
+</html>

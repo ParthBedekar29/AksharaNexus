@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civilization — AksharaNexus</title>
+    <link rel="stylesheet" href="css/civilization.css" />
+</head>
+<body>
+
+<nav class="nav">
+    <div style="display:flex;align-items:center;gap:16px">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">&#8592; Dashboard</a>
+        <a href="index.html" class="nav-logo">AksharaNexus</a>
+    </div>
+    <div class="nav-links">
+        <span id="nav-role-badge"></span>
+        <button class="btn btn-ghost btn-sm" onclick="Auth.logout()">Sign out</button>
+    </div>
+</nav>
+
+<div class="civ-shell">
+
+    <!-- Left: Version History -->
+    <div class="col-left">
+        <div class="panel-header">
+            <div class="panel-title">Version history</div>
+            <div class="panel-sub" id="version-count">Loading&hellip;</div>
+            <div id="submit-review-wrap" style="display:none;padding:12px 16px 0">
+                <button class="btn btn-teal w-full btn-sm" id="submit-all-btn" onclick="submitAllForReview()">
+                    ↑ Submit drafts for review
+                </button>
+            </div>
+        </div>
+        <div class="version-list" id="version-list">
+            <div class="empty-state"><div class="spinner spinner-dark"></div></div>
+        </div>
+    </div>
+
+    <!-- Center: Main Content -->
+    <div class="col-center">
+
+        <!-- Civ Meta -->
+        <div class="civ-meta" id="civ-meta">
+            <div style="text-align:center;padding:40px"><div class="spinner spinner-dark"></div></div>
+        </div>
+
+        <!-- Tree Viewer -->
+        <div class="tree-container">
+            <div class="tree-toolbar">
+                <div class="tree-toolbar-title">
+                    Knowledge tree
+                    <span class="tree-toolbar-hash" id="tree-hash"></span>
+                </div>
+                <div style="display:flex;gap:8px" id="tree-edit-actions"></div>
+            </div>
+            <div class="tree-body" id="tree-body">
+                <div class="empty-state"><div class="spinner spinner-dark"></div></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right: Editors -->
+    <div class="col-right">
+        <div class="panel-header">
+            <div class="panel-title">Editors</div>
+            <div class="panel-sub">Assigned to this civilization</div>
+        </div>
+        <div class="editors-section" id="editors-list">
+            <div class="empty-state"><div class="spinner spinner-dark"></div></div>
+        </div>
+        <div id="assign-editor-wrap" style="padding:0 20px 20px;display:none">
+            <button class="btn btn-teal w-full btn-sm" onclick="openModal('assign-editor-modal')">+ Assign editor</button>
+        </div>
+    </div>
+    <!-- Entry Review Marks Panel -->
+    <div class="col-marks" id="col-marks" style="display:none">
+        <div class="panel-header">
+            <div class="panel-title">Review Feedback</div>
+            <div class="panel-sub">What reviewers said about your entries</div>
+        </div>
+        <div id="marks-feed" style="flex:1;overflow-y:auto;padding:8px 0">
+            <div class="empty-state" style="padding:32px 16px">
+                <p>No feedback yet</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Volume Modal -->
+<div class="modal-overlay" id="add-volume-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Add volume</div>
+            <button class="modal-close" onclick="closeModal('add-volume-modal')">&#x2715;</button>
+        </div>
+        <div id="add-volume-form-wrap">
+            <input type="hidden" id="vol-parent-id" />
+            <div class="form-group">
+                <label for="vol-title">Volume title</label>
+                <input type="text" id="vol-title" placeholder="e.g. Early Period" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div class="form-group">
+                    <label for="vol-start">Start year</label>
+                    <input type="number" id="vol-start" placeholder="-3000" />
+                </div>
+                <div class="form-group">
+                    <label for="vol-end">End year</label>
+                    <input type="number" id="vol-end" placeholder="-1000" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="vol-commit">Commit message</label>
+                <input type="text" id="vol-commit" placeholder="e.g. Add Early Period volume" />
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-primary" id="add-vol-btn" onclick="submitAddVolume()">Add volume</button>
+                <button class="btn btn-secondary" onclick="closeModal('add-volume-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Entry Modal -->
+<div class="modal-overlay" id="add-entry-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Add entry</div>
+            <button class="modal-close" onclick="closeModal('add-entry-modal')">&#x2715;</button>
+        </div>
+        <div id="add-entry-form-wrap">
+            <input type="hidden" id="entry-parent-id" />
+            <div class="form-group">
+                <label for="entry-title">Entry title</label>
+                <input type="text" id="entry-title" placeholder="e.g. Indus Valley" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div class="form-group">
+                    <label for="entry-start">Start year</label>
+                    <input type="number" id="entry-start" placeholder="-2600" />
+                </div>
+                <div class="form-group">
+                    <label for="entry-end">End year</label>
+                    <input type="number" id="entry-end" placeholder="-1900" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="entry-commit">Commit message</label>
+                <input type="text" id="entry-commit" placeholder="e.g. Add Indus Valley entry" />
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-primary" id="add-entry-btn" onclick="submitAddEntry()">Add entry</button>
+                <button class="btn btn-secondary" onclick="closeModal('add-entry-modal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Editor Modal (Admin only) -->
+<div class="modal-overlay" id="assign-editor-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Assign editor</div>
+            <button class="modal-close" onclick="closeModal('assign-editor-modal')">&#x2715;</button>
+        </div>
+        <div class="form-group">
+            <label for="editor-select">Select researcher</label>
+            <select id="editor-select">
+                <option value="">Loading users&hellip;</option>
+            </select>
+        </div>
+        <div style="display:flex;gap:10px">
+            <button class="btn btn-teal" id="assign-btn" onclick="assignEditor()">Assign</button>
+            <button class="btn btn-secondary" onclick="closeModal('assign-editor-modal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/api.js"></script>
+<script>
+    Auth.requireAuth();
+
+    const jwtRole = Auth.getRole();
+    const civId = new URLSearchParams(window.location.search).get('civId');
+    let currentVersionHash = null;
+    let rootNodeId = null;
+    let role = jwtRole;
+
+    if (!civId) window.location.href = 'dashboard.html';
+
+    document.getElementById('nav-role-badge').innerHTML = roleBadge(role);
+
+    // ── Modal helpers ──
+    function openModal(id) {
+        document.getElementById(id).classList.add('active');
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
+    }
+    async function submitAllForReview() {
+        const btn = document.getElementById('submit-all-btn');
+        try {
+            const versions = await CivAPI.getVersions(civId);
+            const eligible = versions.filter(v =>
+                v.reviewStatus === 'DRAFT' || v.reviewStatus === 'REVISION_REQUESTED'
+            );
+            if (!eligible.length) {
+                showToast('No DRAFT or REVISION_REQUESTED versions to submit', 'info');
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = `Submitting ${eligible.length}…`;
+            const results = await Promise.allSettled(
+                eligible.map(v => CivAPI.submitForReview(civId, v.versionId))
+            );
+            const succeeded = results.filter(r => r.status === 'fulfilled').length;
+            const failed    = results.filter(r => r.status === 'rejected').length;
+            if (succeeded) showToast(`${succeeded} version${succeeded !== 1 ? 's' : ''} submitted for review`, 'success');
+            if (failed)    showToast(`${failed} submission${failed !== 1 ? 's' : ''} failed`, 'error');
+            await loadVersions();
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '↑ Submit drafts for review';
+        }
+    }
+    // ── Toast helpers ──
+    function showToast(msg, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+    }
+
+    // ── Utilities ──
+    function shortHash(h) { return h ? h.substring(0, 8) : ''; }
+    function formatYear(y) {
+        if (y == null) return '?';
+        return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+    }
+    function roleBadge(r) {
+        if (!r) return '';
+        const map = { ADMIN: 'badge-admin', EDITOR: 'badge-editor', VIEWER: 'badge-viewer' };
+        return `<span class="badge ${map[r] || 'badge-viewer'}">${r}</span>`;
+    }
+
+    // ── Load Versions ──
+    async function loadVersions() {
+        try {
+            const versions = await CivAPI.getVersions(civId);
+            document.getElementById('version-count').textContent =
+                `${versions.length} commit${versions.length !== 1 ? 's' : ''}`;
+
+            if (!versions.length) {
+                document.getElementById('version-list').innerHTML =
+                    `<div class="empty-state"><p>No versions yet</p></div>`;
+                return;
+            }
+// ── Version list: hide hash pill, show index label instead ──
+                document.getElementById('version-list').innerHTML = versions.map((v, i) => `
+                <div class="version-item ${i === 0 ? 'selected' : ''}"
+                     onclick="selectVersion('${v.hash}', this)"
+                     data-hash="${v.hash}">
+                    <div class="v-top">
+                        <span class="v-type ${v.commitType === 'MAJOR' ? 'v-type-major' : 'v-type-minor'}">${v.commitType}</span>
+                        ${i === 0 ? '<span class="v-latest-badge">latest</span>' : ''}
+                    </div>
+                    <div class="v-msg">${v.commitMessage || 'No message'}</div>
+                    <div class="v-time">${new Date(v.commitTimestamp).toLocaleString()}</div>
+
+                ${(v.reviewStatus === 'DRAFT' || v.reviewStatus === 'REVISION_REQUESTED')
+                                    ? `<div class="v-needs-review">needs submission</div>`
+                                    : ''}
+                    ${role === 'ADMIN' && i > 0
+                            ? `<button class="btn btn-secondary btn-sm rollback-btn"
+                                   onclick="event.stopPropagation();rollback('${v.hash}')">
+                                   Rollback here
+                           </button>`
+                            : ''}
+                </div>`).join('');
+
+            if (versions[0]) loadTree(versions[0]);
+            // Show submit button only for admins with eligible versions
+            if (role === 'ADMIN') {
+                const hasDrafts = versions.some(v =>
+                    v.reviewStatus === 'DRAFT' || v.reviewStatus === 'REVISION_REQUESTED'
+                );
+                document.getElementById('submit-review-wrap').style.display = hasDrafts ? 'block' : 'none';
+            }
+        } catch (err) {
+            document.getElementById('version-list').innerHTML =
+                `<div class="empty-state"><p>${err.message}</p></div>`;
+        }
+    }
+
+    function selectVersion(hash, el) {
+        document.querySelectorAll('.version-item').forEach(v => v.classList.remove('selected'));
+        el.classList.add('selected');
+        CivAPI.getVersions(civId).then(versions => {
+            const v = versions.find(v => v.hash === hash);
+            if (v) loadTree(v);
+        });
+    }
+
+    // ── Load Latest & Meta ──
+    async function loadLatest() {
+        try {
+            const latest = await CivAPI.getLatest(civId);
+            renderMeta(latest);
+            loadTree(latest);
+        } catch (err) {
+            document.getElementById('civ-meta').innerHTML =
+                `<p style="color:var(--faint);padding:16px">${err.message}</p>`;
+        }
+    }
+
+    // ── Remove hash pill from civ meta ──
+    function renderMeta(version) {
+        const civ = version.civilization || {};
+        document.title = `${civ.title || 'Civilization'} — AksharaNexus`;
+        document.getElementById('civ-meta').innerHTML = `
+        <div class="civ-meta-title">${civ.title || 'Untitled Civilization'}</div>
+        <div class="civ-meta-row">
+            <span class="civ-meta-pill">${formatYear(version.startDate)} &ndash; ${formatYear(version.endDate)}</span>
+            ${roleBadge(role)}
+        </div>
+        <p class="civ-meta-desc">${civ.description || ''}</p>
+    `;
+    }
+    // ── Load Tree ──
+    async function loadTree(version) {
+        currentVersionHash = version.hash;
+        document.getElementById('tree-hash').textContent = '';
+
+        let tree;
+        try {
+            tree = typeof version.serializedTree === 'string'
+                ? JSON.parse(version.serializedTree)
+                : version.serializedTree;
+        } catch {
+            document.getElementById('tree-body').innerHTML =
+                `<p style="color:var(--faint);padding:16px">Could not parse tree</p>`;
+            return;
+        }
+
+        if (!tree) {
+            document.getElementById('tree-body').innerHTML =
+                `<div class="empty-state"><p>Empty tree</p></div>`;
+            return;
+        }
+
+        // Load marks first so tree render can use them
+        let marksMap = {};
+        try {
+            const marks = await CivAPI.getEntryMarks(civId);
+            marks.forEach(m => { marksMap[m.nodeId] = m; });
+        } catch { /* marks not critical — render tree anyway */ }
+
+        rootNodeId = tree.nodeId;
+        document.getElementById('tree-body').innerHTML = renderTreeNode(tree, true, null, marksMap);
+
+        const canEdit = role === 'ADMIN' || role === 'EDITOR';
+        document.getElementById('tree-edit-actions').innerHTML = canEdit
+            ? `<button class="btn btn-secondary btn-sm" onclick="openAddVolume('${rootNodeId}')">+ Volume</button>`
+            : '';
+
+        // Show marks panel if there are any marks
+        if (Object.keys(marksMap).length > 0) {
+            renderMarksFeed(Object.values(marksMap));
+            document.getElementById('col-marks').classList.add('col-marks-visible');
+        }
+    }
+
+    function renderTreeNode(node, isRoot = false, parentData = null, marksMap = {}) {
+        const data = node.data;
+        const children = node.children || [];
+        const hasChildren = children.length > 0;
+        const canEdit = role === 'ADMIN' || role === 'EDITOR';
+        const isEntry  = data?.nodeType === 'ENTRY';
+        const isVolume = data?.nodeType === 'VOLUME';
+
+        let glyph = '◆';
+        if (isVolume) glyph = '&sect;';
+        if (isEntry)  glyph = '&ndash;';
+
+        let label    = 'Root';
+        let metaText = '';
+
+        if (data) {
+            label    = data.title || data.nodeType || 'Node';
+            metaText = data.startYear != null
+                ? `${formatYear(data.startYear)} &ndash; ${formatYear(data.endYear)}`
+                : '';
+        }
+
+        const nodeId = node.nodeId;
+
+        // Entry mark badge
+        let markBadgeHTML = '';
+        if (isEntry && marksMap[nodeId]) {
+            const m = marksMap[nodeId];
+            const badgeClass = {
+                APPROVED:           'mark-badge-approved',
+                REJECTED:           'mark-badge-rejected',
+                REVISION_REQUESTED: 'mark-badge-revision',
+            }[m.markStatus] || '';
+            const label = m.markStatus.replace(/_/g, ' ');
+            markBadgeHTML = `<span class="mark-badge ${badgeClass}">${label}</span>`;
+        }
+
+        const civTitleText = encodeURIComponent(
+            document.getElementById('civ-meta')?.querySelector('.civ-meta-title')?.textContent || 'Civilization');
+        const volTitleText = encodeURIComponent(parentData?.title || 'Volume');
+        const editorUrl = `entry-editor.html?civId=${civId}&nodeId=${nodeId}&civTitle=${civTitleText}&volTitle=${volTitleText}`;
+
+        const actionsHTML = canEdit && !isRoot ? `
+        <div class="tree-node-actions">
+            ${isVolume ? `<button class="tree-action-btn" onclick="event.stopPropagation();openAddEntry('${nodeId}')">+ Entry</button>` : ''}
+            ${isEntry  ? `<a class="tree-action-btn" href="${editorUrl}" onclick="event.stopPropagation()">Edit</a>` : ''}
+        </div>` : '';
+
+        const rowClick = isEntry
+            ? `onclick="window.location.href='${editorUrl}'" style="cursor:pointer"`
+            : `onclick="toggleNode(this)"`;
+
+        return `
+        <div class="tree-node-wrap">
+            <div class="tree-node-row" ${rowClick}>
+                ${hasChildren
+            ? `<span class="tree-toggle open" onclick="event.stopPropagation();toggleNode(this.parentElement)">&#9658;</span>`
+            : `<span class="tree-toggle-spacer"></span>`}
+                <span class="tree-node-glyph">${glyph}</span>
+                <span class="tree-node-label ${isEntry ? 'entry-label' : ''}">${label}</span>
+                ${metaText ? `<span class="tree-node-meta">${metaText}</span>` : ''}
+                ${markBadgeHTML}
+                ${actionsHTML}
+            </div>
+            ${hasChildren ? `
+                <div class="tree-children-wrap">
+                    ${children.map(c => renderTreeNode(c, false, data, marksMap)).join('')}
+                </div>` : ''}
+        </div>`;
+    }
+    function renderMarksFeed(marks) {
+        const feed = document.getElementById('marks-feed');
+        if (!marks.length) return;
+
+        // Sort newest first
+        marks.sort((a, b) => new Date(b.markedAt) - new Date(a.markedAt));
+
+        const icons = { APPROVED: '✓', REJECTED: '✕', REVISION_REQUESTED: '↺' };
+        const classes = {
+            APPROVED:           'feed-item-approved',
+            REJECTED:           'feed-item-rejected',
+            REVISION_REQUESTED: 'feed-item-revision',
+        };
+
+        feed.innerHTML = marks.map(m => `
+        <div class="feed-item ${classes[m.markStatus] || ''}">
+            <div class="feed-item-top">
+                <span class="feed-icon">${icons[m.markStatus] || '·'}</span>
+                <span class="feed-entry-title">${m.entryTitle || 'Untitled Entry'}</span>
+            </div>
+            <div class="feed-status">${m.markStatus.replace(/_/g, ' ')}</div>
+            ${m.reviewerNote
+            ? `<div class="feed-note">"${m.reviewerNote}"</div>`
+            : ''}
+            <div class="feed-meta">
+                ${m.reviewerName ? `by ${m.reviewerName} &middot; ` : ''}
+                ${m.markedAt ? new Date(m.markedAt).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}) : ''}
+            </div>
+        </div>`).join('');
+    }
+    function toggleNode(row) {
+        const toggle = row.querySelector('.tree-toggle');
+        if (!toggle) return;
+        const wrap = row.nextElementSibling;
+        if (!wrap) return;
+        const isOpen = toggle.classList.contains('open');
+        toggle.classList.toggle('open', !isOpen);
+        wrap.style.display = isOpen ? 'none' : '';
+    }
+
+    // ── Editors ──
+    async function loadEditors() {
+        try {
+            const editors = await CivAPI.getEditors(civId);
+            if (!editors.length) {
+                document.getElementById('editors-list').innerHTML =
+                    `<div class="empty-state" style="padding:32px 16px"><p>No editors assigned</p></div>`;
+            } else {
+                document.getElementById('editors-list').innerHTML = editors.map(e => {
+                    const user = e.editor || {};
+                    const initial = (user.firstName || 'E').charAt(0).toUpperCase();
+                    return `
+                        <div class="editor-item">
+                            <div class="editor-avatar">${initial}</div>
+                            <div>
+                                <div class="editor-name">${user.firstName || ''} ${user.lastName || ''}</div>
+                                <div class="editor-email">${user.email || ''}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+            if (role === 'ADMIN') {
+                document.getElementById('assign-editor-wrap').style.display = 'block';
+                loadUsersForAssign();
+            }
+        } catch (err) {
+            document.getElementById('editors-list').innerHTML =
+                `<p style="color:var(--faint);padding:16px">${err.message}</p>`;
+        }
+    }
+
+    async function loadUsersForAssign() {
+        try {
+            const users = await CivAPI.getUniversityUsers();
+            const sel = document.getElementById('editor-select');
+            sel.innerHTML = '<option value="">Select a researcher&hellip;</option>';
+            users.filter(u => u.role !== 'ADMIN').forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.userId;
+                opt.textContent = `${u.firstName || ''} ${u.lastName || ''} (${u.email || ''})`;
+                sel.appendChild(opt);
+            });
+        } catch {}
+    }
+
+    async function assignEditor() {
+        const userId = document.getElementById('editor-select').value;
+        if (!userId) { showToast('Select a researcher first', 'error'); return; }
+        const btn = document.getElementById('assign-btn');
+        btn.disabled = true;
+        try {
+            await CivAPI.assignEditor(civId, userId);
+            showToast('Editor assigned', 'success');
+            closeModal('assign-editor-modal');
+            loadEditors();
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally { btn.disabled = false; }
+    }
+
+    // ── Add Volume ──
+    function openAddVolume(parentId) {
+        document.getElementById('vol-parent-id').value = parentId;
+        document.getElementById('vol-title').value = '';
+        document.getElementById('vol-start').value = '';
+        document.getElementById('vol-end').value = '';
+        document.getElementById('vol-commit').value = '';
+        openModal('add-volume-modal');
+    }
+
+    async function submitAddVolume() {
+        const title  = document.getElementById('vol-title').value.trim();
+        const start  = document.getElementById('vol-start').value;
+        const end    = document.getElementById('vol-end').value;
+        const commit = document.getElementById('vol-commit').value.trim();
+        if (!title || !start || !end || !commit) { showToast('All fields required', 'error'); return; }
+
+        const btn = document.getElementById('add-vol-btn');
+        btn.disabled = true;
+        btn.textContent = 'Adding\u2026';
+        try {
+            await CivAPI.addVolume(civId, {
+                parentNodeId: document.getElementById('vol-parent-id').value,
+                node: { nodeType: 'VOLUME', title, startYear: parseInt(start), endYear: parseInt(end), blocks: null },
+                commitMsg: commit
+            });
+            showToast('Volume added', 'success');
+            closeModal('add-volume-modal');
+            await loadVersions();
+            await loadLatest();
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Add volume';
+        }
+    }
+
+    // ── Add Entry ──
+    function openAddEntry(parentId) {
+        document.getElementById('entry-parent-id').value = parentId;
+        document.getElementById('entry-title').value = '';
+        document.getElementById('entry-start').value = '';
+        document.getElementById('entry-end').value = '';
+        document.getElementById('entry-commit').value = '';
+        openModal('add-entry-modal');
+    }
+
+    async function submitAddEntry() {
+        const title  = document.getElementById('entry-title').value.trim();
+        const start  = document.getElementById('entry-start').value;
+        const end    = document.getElementById('entry-end').value;
+        const commit = document.getElementById('entry-commit').value.trim();
+        if (!title || !start || !end || !commit) { showToast('All fields required', 'error'); return; }
+
+        const btn = document.getElementById('add-entry-btn');
+        btn.disabled = true;
+        btn.textContent = 'Adding\u2026';
+        try {
+            await CivAPI.addEntry(civId, {
+                parentNodeId: document.getElementById('entry-parent-id').value,
+                node: { nodeType: 'ENTRY', title, startYear: parseInt(start), endYear: parseInt(end), blocks: [] },
+                commitMsg: commit
+            });
+            showToast('Entry added', 'success');
+            closeModal('add-entry-modal');
+            await loadVersions();
+            await loadLatest();
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Add entry';
+        }
+    }
+
+    // ── Rollback ──
+    async function rollback(hash) {
+        if (!confirm(`Roll back to commit ${shortHash(hash)}? A new version will be created preserving history.`)) return;
+        try {
+            await CivAPI.rollback(civId, hash);
+            showToast('Rollback successful', 'success');
+            await loadVersions();
+            await loadLatest();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    // ── Resolve effective role ──
+    async function resolveEffectiveRole() {
+        if (jwtRole === 'ADMIN') return;
+        try {
+            const editors = await CivAPI.getEditors(civId);
+            const payload = Auth.getPayload();
+            const myEmail = payload?.sub || '';
+            const isAssignedEditor = editors.some(e => {
+                const u = e.editor || {};
+                return u.email === myEmail;
+            });
+            if (isAssignedEditor) {
+                role = 'EDITOR';
+                document.getElementById('nav-role-badge').innerHTML = roleBadge('EDITOR');
+            }
+        } catch {}
+    }
+
+    // ── Init ──
+    async function boot() {
+        await resolveEffectiveRole();
+        await Promise.all([loadLatest(), loadVersions(), loadEditors()]);
+    }
+
+    boot();
+</script>
+</body>
+</html>

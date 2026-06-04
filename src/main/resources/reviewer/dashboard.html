@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AksharaNexus — Review Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Nav ─────────────────────────────────────────────────────────────── -->
+<nav class="nav">
+    <div class="nav-brand">
+        <span class="nav-logo">AksharaNexus</span>
+        <span class="nav-sep">/</span>
+        <span class="nav-context">Reviewer Portal</span>
+    </div>
+    <div class="nav-right">
+        <span class="reviewer-chip" id="nav-reviewer-name">—</span>
+        <button class="nav-sign-out" id="btn-signout">Sign out</button>
+    </div>
+</nav>
+
+<!-- ── App shell ─────────────────────────────────────────────────────── -->
+<div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-stats">
+            <div class="stat-block">
+                <span class="stat-num" id="stat-civs">—</span>
+                <span class="stat-label">Civilizations</span>
+            </div>
+            <div class="stat-block">
+                <span class="stat-num" id="stat-marks">—</span>
+                <span class="stat-label">Marked</span>
+            </div>
+        </div>
+
+        <div class="sidebar-section">
+            <span class="sidebar-section-label">Browse</span>
+            <button class="sidebar-link active" data-view="civilizations" id="nav-civilizations">
+                <span class="sidebar-icon">◉</span> All Civilizations
+                <span class="sidebar-pill" id="pill-civs">0</span>
+            </button>
+            <button class="sidebar-link" data-view="marks" id="nav-marks">
+                <span class="sidebar-icon">✓</span> My Marks
+            </button>
+        </div>
+
+        <div class="sidebar-section" style="margin-top:16px">
+            <span class="sidebar-section-label">Central Archive</span>
+            <button class="sidebar-link" data-view="central" id="nav-central">
+                <span class="sidebar-icon">⊞</span> Civilizations
+            </button>
+        </div>
+
+        <div class="sidebar-bottom">
+            <div class="reviewer-info">
+                <div class="reviewer-avatar" id="sidebar-avatar">R</div>
+                <div>
+                    <div class="reviewer-name" id="sidebar-name">Reviewer</div>
+                    <div class="reviewer-role-label">Reviewer</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main" id="main">
+
+        <!-- ── All Civilizations view ───────────────────────────────────────── -->
+        <section class="view active" id="view-civilizations">
+            <div class="view-header">
+                <div>
+                    <h1 class="view-title">All Civilizations</h1>
+                    <p class="view-sub">Latest version of every civilization submitted by universities. Click to browse and mark entries.</p>
+                </div>
+                <button class="btn-primary" id="btn-refresh-civs">Refresh</button>
+            </div>
+            <div id="civs-list" class="version-list">
+                <div class="skeleton-list">
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── My Marks view ────────────────────────────────────────────────── -->
+        <section class="view" id="view-marks">
+            <div class="view-header">
+                <div>
+                    <h1 class="view-title">My Marks</h1>
+                    <p class="view-sub">Entries you have approved, rejected, or flagged for revision. Approved entries can be added to a central civilization.</p>
+                </div>
+                <button class="btn-primary" id="btn-refresh-marks">Refresh</button>
+            </div>
+            <div id="marks-list" class="version-list">
+                <div class="skeleton-list">
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Central archive view ─────────────────────────────────────────── -->
+        <section class="view" id="view-central">
+            <div class="view-header">
+                <div>
+                    <h1 class="view-title">Central Archive</h1>
+                    <p class="view-sub">The curated cross-institutional civilization database. Create a civilization here first, then add approved entries to it.</p>
+                </div>
+                <button class="btn-primary" id="btn-new-civ">+ New Civilization</button>
+            </div>
+            <div id="central-grid" class="central-grid">
+                <div class="skeleton-list">
+                    <div class="skeleton-row"></div>
+                    <div class="skeleton-row"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Central civilization detail panel ────────────────────────────── -->
+        <div class="detail-panel" id="panel-central">
+            <div class="detail-inner">
+                <button class="detail-back" id="btn-back-central">← Back to archive</button>
+                <div id="central-detail-content"></div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ── Toast container ──────────────────────────────────────────────── -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ── New Civilization Modal ───────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-new-civ">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <span class="modal-title">Add Civilization to Central Archive</span>
+            <button class="modal-close" data-close="modal-new-civ">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Search by civilization name</label>
+                <input type="text" id="new-civ-search"
+                       placeholder="e.g. Indus Valley Civilization" autocomplete="off">
+            </div>
+            <div id="civ-metadata-picker" style="display:none;margin-top:4px"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" data-close="modal-new-civ">Cancel</button>
+            <button class="btn-submit" id="btn-submit-new-civ">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add Volume Modal ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-add-volume">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Add Volume</span>
+            <button class="modal-close" data-close="modal-add-volume">✕</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-hint">Volumes organise entries by period or theme within a civilization.</p>
+            <div class="form-group">
+                <label>Volume Title</label>
+                <input type="text" id="vol-title" placeholder="e.g. Urban Phase">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Start Year <span class="field-hint">(BCE = negative)</span></label>
+                    <input type="number" id="vol-start" placeholder="-2600">
+                </div>
+                <div class="form-group">
+                    <label>End Year</label>
+                    <input type="number" id="vol-end" placeholder="-2000">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Position <span class="field-hint">(display order, e.g. 1, 2, 3…)</span></label>
+                <input type="number" id="vol-position" placeholder="1" min="1">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" data-close="modal-add-volume">Cancel</button>
+            <button class="btn-submit" id="btn-submit-volume">Add Volume</button>
+        </div>
+    </div>
+</div>
+
+<<!-- ── Add Entry Modal (picks from approved marks) ──────────────────── -->
+<!-- ── Add Entry Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-add-entry">
+    <div class="modal modal-wide">
+        <div class="modal-header">
+            <span class="modal-title">Link Approved Entry to Archive</span>
+            <button class="modal-close" data-close="modal-add-entry">✕</button>
+        </div>
+        <div class="modal-body" style="gap:10px">
+            <div id="approved-marks-list" class="entry-pick-list"></div>
+            <div class="form-group" style="margin-top:4px">
+                <label>Starting Position in Volume <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--faint)">(display order — entries will be re-sorted by year automatically)</span></label>
+                <input type="number" id="entry-position" placeholder="1" min="1" style="max-width:120px">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" data-close="modal-add-entry">Cancel</button>
+            <button class="btn-submit" id="btn-submit-entry">Add to Archive</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Flag Divergence Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-flag-divergence">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Flag Historical Divergence</span>
+            <button class="modal-close" data-close="modal-flag-divergence">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="divergence-entries-preview">
+                <div class="div-entry-preview">
+                    <span class="div-entry-role">Primary entry</span>
+                    <span class="div-entry-name" id="div-primary-name">—</span>
+                </div>
+                <div class="div-vs">vs</div>
+                <div class="div-entry-preview">
+                    <span class="div-entry-role">Conflicting entry</span>
+                    <span class="div-entry-name" id="div-conflict-name">—</span>
+                </div>
+            </div>
+            <input type="hidden" id="div-primary-id">
+            <input type="hidden" id="div-conflict-id">
+            <div class="form-group" style="margin-top:16px">
+                <label>Explain the disagreement</label>
+                <textarea id="div-note" placeholder="e.g. Oxford dates the collapse to 1900 BCE while Delhi argues 1700 BCE based on different stratigraphic evidence." style="min-height:90px"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" data-close="modal-flag-divergence">Cancel</button>
+            <button class="btn-submit" id="btn-submit-divergence">Flag Divergence</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="dashboard.js"></script>
+</body>
+</html>

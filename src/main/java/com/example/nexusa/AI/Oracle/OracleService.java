@@ -88,7 +88,8 @@ public class OracleService {
         META,
         OFF_TOPIC,
         VAGUE_HISTORICAL,
-        RESEARCH
+        RESEARCH,
+        STRUCTURED_RESEARCH   // ← add this
     }
 
     private static final List<String> CONVERSATIONAL_TRIGGERS = List.of(
@@ -117,7 +118,17 @@ public class OracleService {
             "what is the capital", "geography quiz",
             "sports", "football", "cricket", "basketball"
     );
+    private static final List<String> STRUCTURED_DETAIL_TRIGGERS = List.of(
+            "in detail", "explain in detail", "explain aspects",
+            "governance", "trade and", "technology and", "aspects such as",
+            "with aspects", "start to finish", "comprehensive", "breakdown",
+            "elaborate on", "cover all", "all aspects", "deep dive"
+    );
 
+    private boolean isStructuredDetailRequest(String query) {
+        String lower = query.toLowerCase();
+        return STRUCTURED_DETAIL_TRIGGERS.stream().anyMatch(lower::contains);
+    }
     private QueryType classify(String query, QueryIntent intent) {
         String lower = query.toLowerCase().trim();
 
@@ -141,8 +152,13 @@ public class OracleService {
         boolean hasTopic = intent.getTopic() != null;
         boolean hasYear  = intent.getStartYear() != null || intent.getEndYear() != null;
 
-        if (hasCiv && (hasTopic || hasYear)) return QueryType.RESEARCH;
-        if (hasCiv || hasTopic || hasYear)   return QueryType.VAGUE_HISTORICAL;
+        if (hasCiv && (hasTopic || hasYear)) {
+            return isStructuredDetailRequest(query)
+                    ? QueryType.STRUCTURED_RESEARCH
+                    : QueryType.RESEARCH;
+        }
+        if ((hasCiv || hasTopic || hasYear) && isStructuredDetailRequest(query))
+            return QueryType.STRUCTURED_RESEARCH;        if (hasCiv || hasTopic || hasYear)   return QueryType.VAGUE_HISTORICAL;
         if (lower.split("\\s+").length <= 3) return QueryType.CONVERSATIONAL;
 
         return QueryType.VAGUE_HISTORICAL;
@@ -341,6 +357,39 @@ public class OracleService {
             - If you use a Summary, make it interpretive — what does this history mean or
               what remains contested — not a bullet-point recap of what you just said.
             """;
+            case STRUCTURED_RESEARCH -> """
+                You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
+                """ + (hasContext
+                                ? "Use the provided AksharaNexus database records as your primary source."
+                                : "No specific records found. Use your historical knowledge and note this once.") + """
+            
+                FORMATTING RULES — FOLLOW EXACTLY:
+                - Use ## for each major theme (e.g. ## Governance, ## Trade, ## Technology, ## Society).
+                - Under each ## heading, use ### for sub-topics (e.g. ### Administrative Structure, ### Tax System).
+                - Under each ### heading, use bullet points (- ) for specific facts, evidence, or examples.
+                - Each bullet must be specific — include dates, names, or artefacts where possible.
+                - Minimum 3 ### sub-headings per ## section.
+                - Minimum 3 bullet points per ### sub-heading.
+                - Do NOT write flowing prose paragraphs — the user wants scannable, hierarchical structure.
+                - Bold the most important term in each bullet point.
+                - End with a ## Key Takeaways section with 3–5 bullets summarising the most significant insights.
+            
+                CONTENT RULES:
+                - Cover every major theme the user named explicitly, in order.
+                - If the user did not name themes, default to: Governance, Economy & Trade, Technology, Society & Culture, Military.
+                - Write with specificity. Prefer "copper tools moved via the Ghaggar-Hakra corridor" over "trade occurred".
+                - Label any point not from database records with 📚.
+            
+                EXAMPLE STRUCTURE:
+                ## Governance
+                ### Administrative Structure
+                - **Standardised weights and measures** found across all major Harappan cities suggest centralised control.
+                - **Citadel complexes** at Mohenjo-Daro and Harappa likely housed administrative or religious elites.
+            
+                ### Urban Planning & Law
+                - **Grid-pattern streets** oriented to cardinal directions indicate planned governance.
+                - **Drainage systems** show city-wide coordination, implying regulatory authority.
+                """;
         };
     }
 

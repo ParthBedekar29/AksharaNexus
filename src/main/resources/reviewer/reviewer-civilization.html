@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css"/>
     <style>
-        /* Layout primitives not covered by style.css dashboard patterns */
         .civ-shell {
             display: grid;
             grid-template-columns: 1fr 300px;
@@ -61,7 +60,6 @@
 
         .tree-body { flex: 1; overflow-y: auto; padding: 20px 32px; }
 
-        /* Tree nodes */
         .tree-node-wrap { margin-bottom: 3px; }
         .tree-node-row {
             display: flex; align-items: center; gap: 8px;
@@ -89,6 +87,22 @@
         .tree-node-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--faint); white-space: nowrap; flex-shrink: 0; }
         .tree-children-wrap { padding-left: 28px; border-left: 1px dashed var(--rule); margin-left: 9px; }
 
+        /* Entry action buttons in tree */
+        .entry-action-group {
+            display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+        }
+        .tree-entry-btn {
+            font-size: 0.68rem; padding: 2px 7px;
+            border-radius: 4px; cursor: pointer; white-space: nowrap;
+            border: 1px solid var(--rule); background: var(--card);
+            transition: opacity 0.15s;
+        }
+        .tree-entry-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .tree-entry-btn.approve  { color: #065F46; border-color: #A7F3D0; background: #D1FAE5; }
+        .tree-entry-btn.reject   { color: #991B1B; border-color: #FCA5A5; background: #FEE2E2; }
+        .tree-entry-btn.revise   { color: #92400E; border-color: #FDE68A; background: #FEF3C7; }
+        .tree-entry-btn.marked   { color: var(--muted); border-color: var(--rule); background: var(--bg); cursor: default; }
+
         /* Right panel */
         .panel-header { padding: 18px 22px; border-bottom: 1px solid var(--rule); flex-shrink: 0; }
         .commit-info { flex: 1; overflow-y: auto; }
@@ -100,6 +114,9 @@
 
         .spinner { width: 22px; height: 22px; border: 2px solid var(--rule); border-top-color: var(--muted); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
     </style>
 </head>
 <body>
@@ -153,13 +170,16 @@
 
 </div>
 
+<div class="toast-container" id="toasts"></div>
+
 <script type="module">
     import {
         isLoggedIn, getReviewerEmail,
-        getVersionDetail, getVersionMarks
+        getVersionDetail, getVersionMarks,
+        markVolume, markEntry
     } from './api.js';
-    import {markVolume} from "./api";
 
+    // nodeId → markStatus for entries already reviewed in this version
     const versionMarksMap = new Map();
 
     if (!isLoggedIn()) { window.location.href = 'login.html'; }
@@ -171,6 +191,7 @@
     document.getElementById('nav-reviewer').textContent = getReviewerEmail();
     if (civTitle) document.getElementById('nav-civ-name').textContent = decodeURIComponent(civTitle);
 
+    // ── Utilities ─────────────────────────────────────────────────────────
     function formatYear(y) {
         if (y == null) return '?';
         return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
@@ -182,7 +203,15 @@
     function statusBadge(s) {
         return `<span class="status-badge status-${s}">${s.replace(/_/g,' ')}</span>`;
     }
+    function toast(msg, type = 'info') {
+        const el = document.createElement('div');
+        el.className = `toast toast-${type}`;
+        el.textContent = msg;
+        document.getElementById('toasts').appendChild(el);
+        setTimeout(() => el.remove(), 3400);
+    }
 
+    // ── Load workspace ────────────────────────────────────────────────────
     async function loadReviewWorkspace() {
         if (!versionId) {
             document.getElementById('tree-body').innerHTML =
@@ -251,6 +280,7 @@
         `;
     }
 
+    // ── Tree rendering ────────────────────────────────────────────────────
     function renderTree(v) {
         const body = document.getElementById('tree-body');
         let tree;
@@ -265,68 +295,83 @@
             return;
         }
         body.innerHTML = renderTreeNode(tree, true, v);
-        // After setting body.innerHTML:
-        body.querySelectorAll('.mark-vol-btn').forEach(btn => {
-            btn.addEventListener('click', async e => {
-                e.stopPropagation();
-                btn.disabled = true;
-                btn.textContent = 'Saving…';
-                try {
-                    await markVolume({
-                        versionId: v.versionId,
-                        nodeId:    btn.dataset.nodeId,
-                        volumeTitle: btn.dataset.title,
-                        startYear: btn.dataset.start ? parseInt(btn.dataset.start) : null,
-                        endYear:   btn.dataset.end   ? parseInt(btn.dataset.end)   : null,
-                    });
-                    btn.textContent = '✓ Marked';
-                    btn.style.color = 'var(--muted)';
-                } catch(err) {
-                    btn.disabled = false;
-                    btn.textContent = '+ Mark Volume';
-                    alert(err.message);
-                }
-            });
-        });
+        wireTreeButtons(body, v);
     }
 
     function renderTreeNode(node, isRoot, version, parentData = null) {
         if (!node) return '';
         if (!node.data) return (node.children || []).map(c => renderTreeNode(c, false, version)).join('');
 
-        const d = node.data;
-        const isVolume = d.nodeType === 'VOLUME';
-        const isEntry  = d.nodeType === 'ENTRY';
-        const children = node.children || [];
+        const d           = node.data;
+        const isVolume    = d.nodeType === 'VOLUME';
+        const isEntry     = d.nodeType === 'ENTRY';
+        const children    = node.children || [];
         const hasChildren = children.length > 0;
 
         let glyph = '◆';
         if (isVolume) glyph = '§';
         if (isEntry)  glyph = '–';
 
-        const metaText = d.startYear != null ? `${formatYear(d.startYear)} – ${formatYear(d.endYear)}` : '';
+        const metaText    = d.startYear != null ? `${formatYear(d.startYear)} – ${formatYear(d.endYear)}` : '';
         const civTitleEnc = encodeURIComponent(version?.civTitle || '');
         const volTitleEnc = encodeURIComponent(parentData?.title || d.title || '');
         const entryUrl    = `reviewer-entry.html?versionId=${version?.versionId}&nodeId=${node.nodeId}&civTitle=${civTitleEnc}&volTitle=${volTitleEnc}`;
 
-        const status = versionMarksMap.get(node.nodeId);
-        const statusBadgeHtml = status
-            ? `<span class="tree-status-badge ${status}">${status.replace(/_/g,' ')}</span>`
-            : '';
+        const currentStatus = versionMarksMap.get(node.nodeId);
 
-        const labelHtml = isEntry
-            ? `<span class="tree-node-label entry-label" onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>${statusBadgeHtml}`
-            : isVolume
-                ? `<span class="tree-node-label" style="font-weight:500">${d.title || 'Untitled Structure'}</span>
-       <button class="mark-vol-btn"
-               data-node-id="${node.nodeId}"
-               data-title="${(d.title||'').replace(/"/g,'&quot;')}"
-               data-start="${d.startYear ?? ''}"
-               data-end="${d.endYear ?? ''}"
-               style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--card);color:var(--teal);cursor:pointer;white-space:nowrap;flex-shrink:0">
-         + Mark Volume
-       </button>`
-                : `<span class="tree-node-label">${d.title || 'Untitled Structure'}</span>`;
+        let labelHtml = '';
+
+        if (isEntry) {
+            // ── Entry: clickable title + inline Approve / Reject / Revision buttons ──
+            const statusBadgeHtml = currentStatus
+                ? `<span class="tree-status-badge ${currentStatus}" style="font-size:0.65rem;padding:1px 6px;border-radius:3px;white-space:nowrap">${currentStatus.replace(/_/g,' ')}</span>`
+                : '';
+
+            // If already marked, show a compact "marked" indicator instead of action buttons
+            const actionHtml = currentStatus
+                ? `<span class="tree-entry-btn marked">✓ ${currentStatus.replace(/_/g,' ')}</span>`
+                : `<div class="entry-action-group">
+                     <button class="tree-entry-btn approve"
+                             data-action="APPROVED"
+                             data-node-id="${node.nodeId}"
+                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
+                       ✓ Approve
+                     </button>
+                     <button class="tree-entry-btn revise"
+                             data-action="REVISION_REQUESTED"
+                             data-node-id="${node.nodeId}"
+                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
+                       ↩ Revise
+                     </button>
+                     <button class="tree-entry-btn reject"
+                             data-action="REJECTED"
+                             data-node-id="${node.nodeId}"
+                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
+                       ✕ Reject
+                     </button>
+                   </div>`;
+
+            labelHtml = `
+                <span class="tree-node-label entry-label"
+                      onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>
+                ${actionHtml}`;
+
+        } else if (isVolume) {
+            // ── Volume: title + Mark Volume button ────────────────────────
+            labelHtml = `
+                <span class="tree-node-label" style="font-weight:500">${d.title || 'Untitled Structure'}</span>
+                <button class="mark-vol-btn tree-entry-btn"
+                        data-node-id="${node.nodeId}"
+                        data-title="${(d.title||'').replace(/"/g,'&quot;')}"
+                        data-start="${d.startYear ?? ''}"
+                        data-end="${d.endYear ?? ''}"
+                        style="color:var(--teal)">
+                  + Mark Volume
+                </button>`;
+        } else {
+            labelHtml = `<span class="tree-node-label">${d.title || 'Untitled Structure'}</span>`;
+        }
+
         const childrenHtml = hasChildren
             ? `<div class="tree-children-wrap">${children.map(c => renderTreeNode(c, false, version, d)).join('')}</div>`
             : '';
@@ -341,6 +386,88 @@
                 </div>
                 ${childrenHtml}
             </div>`;
+    }
+
+    // ── Wire all interactive buttons after innerHTML is set ───────────────
+    function wireTreeButtons(body, v) {
+
+        // ── Mark Volume buttons ───────────────────────────────────────────
+        body.querySelectorAll('.mark-vol-btn').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+                btn.disabled    = true;
+                btn.textContent = 'Saving…';
+                try {
+                    await markVolume({
+                        versionId,
+                        nodeId:      btn.dataset.nodeId,
+                        volumeTitle: btn.dataset.title,
+                        startYear:   btn.dataset.start ? parseInt(btn.dataset.start) : null,
+                        endYear:     btn.dataset.end   ? parseInt(btn.dataset.end)   : null,
+                    });
+                    btn.textContent  = '✓ Marked';
+                    btn.style.color  = 'var(--muted)';
+                    btn.style.borderColor = 'var(--rule)';
+                    toast('Volume marked', 'success');
+                } catch(err) {
+                    btn.disabled    = false;
+                    btn.textContent = '+ Mark Volume';
+                    toast(err.message, 'error');
+                }
+            });
+        });
+
+        // ── Entry mark buttons (Approve / Revise / Reject) ────────────────
+        body.querySelectorAll('.tree-entry-btn[data-action]').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+
+                const action     = btn.dataset.action;
+                const nodeId     = btn.dataset.nodeId;
+                const entryTitle = btn.dataset.entryTitle || 'Untitled Entry';
+
+                // For rejections/revisions a note is required — prompt inline
+                let reviewerNote = '';
+                if (action === 'REJECTED' || action === 'REVISION_REQUESTED') {
+                    reviewerNote = prompt(`Note required for ${action.replace(/_/g,' ')} (cannot be empty):`);
+                    if (reviewerNote === null) return;          // cancelled
+                    if (!reviewerNote.trim()) {
+                        toast('A note is required for this decision.', 'error');
+                        return;
+                    }
+                }
+
+                // Disable all three buttons in this entry's group while submitting
+                const group = btn.closest('.entry-action-group');
+                if (group) group.querySelectorAll('.tree-entry-btn').forEach(b => { b.disabled = true; });
+
+                try {
+                    await markEntry({
+                        versionId,
+                        nodeId,
+                        entryTitle,
+                        markStatus:   action,
+                        reviewerNote: reviewerNote.trim(),
+                    });
+
+                    // Update map so re-renders reflect the new status
+                    versionMarksMap.set(nodeId, action);
+
+                    // Replace the button group with a static "marked" chip
+                    if (group) {
+                        const chip = document.createElement('span');
+                        chip.className   = 'tree-entry-btn marked';
+                        chip.textContent = `✓ ${action.replace(/_/g,' ')}`;
+                        group.replaceWith(chip);
+                    }
+
+                    toast(`Entry ${action.replace(/_/g,' ').toLowerCase()}`, 'success');
+                } catch(err) {
+                    if (group) group.querySelectorAll('.tree-entry-btn').forEach(b => { b.disabled = false; });
+                    toast(err.message, 'error');
+                }
+            });
+        });
     }
 
     window.toggleNode = function(btn) {

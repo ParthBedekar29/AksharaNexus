@@ -1,5 +1,5 @@
 // ── AksharaNexus Reviewer API ─────────────────────────────────────────────
-const BASE = 'http://localhost:8080';
+const BASE = 'https://aksharanexus-production.up.railway.app';
 const TOKEN_KEY = 'reviewer_token';
 
 // ── Token helpers ─────────────────────────────────────────────────────────

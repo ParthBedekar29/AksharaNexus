@@ -195,7 +195,7 @@ public class OracleService {
                 || type == QueryType.OFF_TOPIC) {
 
             // Still use SECURITY_RULES — the user message itself is an injection surface
-            String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false);
+            String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
             String answer = llmService.generate(system, sanitiseQuery(userQuery));
             return new OracleResponse(answer, List.of(), null);
         }
@@ -212,8 +212,7 @@ public class OracleService {
         String context     = truncate(rawContext, MAX_CONTEXT_CHARS);
         boolean hasContext = !context.isBlank();
 
-        String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(type, hasContext);
-
+        String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(type, hasContext, userQuery);
         // Context isolation: records wrapped in hard delimiters the model is
         // explicitly told about in the security rules; user question kept separate.
         String userMessage = hasContext
@@ -264,7 +263,8 @@ public class OracleService {
      * Security guarantees come entirely from SECURITY_RULES above.
      * Do not add security rules here — doing so creates drift.
      */
-    private String behaviorPromptFor(QueryType type, boolean hasContext) {
+// Change signature to accept the query
+    private String behaviorPromptFor(QueryType type, boolean hasContext, String userQuery) {
         return switch (type) {
 
             case CONVERSATIONAL -> """
@@ -359,33 +359,36 @@ public class OracleService {
               what remains contested — not a bullet-point recap of what you just said.
             """;
             case STRUCTURED_RESEARCH -> """
-                You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
-                """ + (hasContext
-                                ? "Use the provided AksharaNexus database records as your primary source."
-                                : "No specific records found. Use your historical knowledge and note this once.") + """
-            
-                CRITICAL OUTPUT RULE:
-                - Begin your response DIRECTLY with the first ## heading.
-                - Never output box characters, banners, delimiters, or any framing text.
-                - Never output text like "RESPONSE FROM..." or "Follow the hierarchical structure below".
-            
-                FORMATTING RULES — FOLLOW EXACTLY:
-                - Use ## for each major theme (e.g. ## Governance, ## Trade, ## Technology).
-                - Under each ## heading, use ### for sub-topics (e.g. ### Administrative Structure).
-                - Under each ### heading, use bullet points (- ) for specific facts and evidence.
-                - Each bullet must be specific — include dates, names, or artefacts where possible.
-                - Minimum 3 ### sub-headings per ## section.
-                - Minimum 3 bullet points per ### sub-heading.
-                - Do NOT write flowing prose paragraphs — the user wants scannable, hierarchical structure.
-                - Bold the most important term in each bullet point.
-                - End with a ## Key Takeaways section with 3–5 interpretive bullets.
-            
-                CONTENT RULES:
-                - Cover every major theme the user named explicitly, in order.
-                - If the user did not name themes, default to: Governance, Economy & Trade, Technology, Society & Culture, Military.
-                - Write with specificity. Prefer "copper tools moved via the Ghaggar-Hakra corridor" over "trade occurred".
-                - Label any point not from database records with 📚.
-                """;
+            You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
+            """ + (hasContext
+                            ? "Use the provided AksharaNexus database records as your primary source."
+                            : "No specific records found. Use your historical knowledge and note this once.") + """
+        
+            CRITICAL OUTPUT RULE:
+            - Begin your response DIRECTLY with the first ## heading.
+            - Never output box characters, banners, delimiters, or any framing text.
+            - Never output text like "RESPONSE FROM..." or "Follow the hierarchical structure below".
+        
+            FORMATTING RULES — FOLLOW EXACTLY:
+            - Use ## for each major theme (e.g. ## Governance, ## Trade, ## Technology).
+            - Under each ## heading, use ### for sub-topics (e.g. ### Administrative Structure).
+            - Under each ### heading, use bullet points (- ) for specific facts and evidence.
+            - Each bullet must be specific — include dates, names, or artefacts where possible.
+            - Minimum 3 ### sub-headings per ## section.
+            - Minimum 3 bullet points per ### sub-heading.
+            - Do NOT write flowing prose paragraphs — the user wants scannable, hierarchical structure.
+            - Bold the most important term in each bullet point.
+            - End with a ## Key Takeaways section with 3–5 interpretive bullets.
+        
+            CONTENT RULES — CRITICAL:
+            - The user's question is: """ + "\"" + userQuery + "\"" + """
+            - Identify the themes the user explicitly named in their question.
+            - Cover ONLY those explicit themes. Do NOT add unrequested themes.
+            - If no themes are named (e.g. "explain the Indus Valley in detail"), THEN default to:
+              Governance, Economy & Trade, Technology, Society & Culture, Military.
+            - Write with specificity. Prefer "copper tools moved via the Ghaggar-Hakra corridor" over "trade occurred".
+            - Label any point not from database records with 📚.
+            """;
         };
     }
 

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>AksharaNexus — Reviewer Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:       #0F172A;
+            --card:     #1E293B;
+            --border:   #334155;
+            --ink:      #F8FAFC;
+            --muted:    #94A3B8;
+            --faint:    #475569;
+            --teal:     #0F766E;
+            --teal-dim: rgba(15,118,110,0.15);
+            --serif:    'IBM Plex Serif', Georgia, serif;
+            --sans:     'IBM Plex Sans', system-ui, sans-serif;
+            --mono:     'IBM Plex Mono', monospace;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .wordmark {
+            font-family: var(--serif);
+            font-size: 1.25rem;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            margin-bottom: 6px;
+        }
+        .wordmark em { font-style: italic; color: var(--teal); }
+
+        .portal-label {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--faint);
+            margin-bottom: 48px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 36px 32px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .card-title {
+            font-family: var(--serif);
+            font-size: 1.5rem;
+            font-weight: 400;
+            line-height: 1.2;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+        }
+
+        .card-sub {
+            font-size: 0.82rem;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            display: block;
+            padding: 12px;
+            background: var(--teal);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-family: var(--sans);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #0D9488; }
+
+        .btn-ghost {
+            display: block;
+            padding: 12px;
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: var(--sans);
+            font-size: 0.875rem;
+            font-weight: 400;
+            text-decoration: none;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .btn-ghost:hover { border-color: #64748B; color: var(--ink); }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0;
+            color: var(--faint);
+            font-size: 0.72rem;
+            font-family: var(--mono);
+            letter-spacing: 0.06em;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .footer-note {
+            margin-top: 32px;
+            font-size: 0.72rem;
+            color: var(--faint);
+            font-family: var(--mono);
+            letter-spacing: 0.04em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="wordmark">Akshara<em>Nexus</em></div>
+<div class="portal-label">Reviewer Portal</div>
+
+<div class="card">
+    <h1 class="card-title">Welcome back</h1>
+    <p class="card-sub">Sign in to access your review queue, or create an account if you have a registration code.</p>
+
+    <div class="btn-group">
+        <a href="login.html" class="btn-primary">Sign in</a>
+        <div class="divider">or</div>
+        <a href="register.html" class="btn-ghost">Create account</a>
+    </div>
+</div>
+
+<p class="footer-note">© 2026 Passion Infotech · AksharaNexus</p>
+
+<script>
+    // Redirect already-logged-in users straight to dashboard
+    const token = localStorage.getItem('reviewer_token');
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+            if (payload.exp && payload.exp * 1000 > Date.now()) {
+                window.location.replace('dashboard.html');
+            }
+        } catch { /* invalid token, stay on page */ }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Join as Researcher — AksharaNexus</title>
+    <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+
+<nav class="nav">
+    <a href="index.html" class="nav-logo">AksharaNexus</a>
+    <div class="nav-right">
+        <a href="login.html" class="nav-hide">Sign In</a>
+        <a href="register-admin.html" class="nav-cta">Register Institution</a>
+    </div>
+</nav>
+
+<div class="auth-wrap">
+    <div class="auth-box">
+
+        <a href="index.html" class="auth-back">← Back to home</a>
+
+        <div class="auth-kicker">Researcher Registration</div>
+        <h1>Create your account</h1>
+        <p class="auth-sub">Register with your institutional email to join your university's research team on AksharaNexus.</p>
+
+        <form id="reg-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" placeholder="Amartya" required />
+                </div>
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" placeholder="Sen" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Institutional Email</label>
+                <input type="email" id="email" placeholder="you@university.edu" required autocomplete="email" />
+            </div>
+
+            <div class="form-group">
+                <label for="university">University</label>
+                <select id="university" required>
+                    <option value="">Loading universities…</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Min. 8 chars, 1 uppercase, 1 number, 1 symbol" required autocomplete="new-password" />
+            </div>
+
+            <div class="form-note">
+                New accounts start with <strong>Viewer</strong> access. An admin at your institution can promote you to Editor on specific civilization trees.
+            </div>
+
+            <button type="submit" class="btn-submit" id="submit-btn">Create Account</button>
+        </form>
+
+        <div class="auth-footer">
+            <span class="auth-footer-line">Already have an account? <a href="login.html">Sign in</a></span>
+            <span class="auth-footer-line">Registering an institution? <a href="register-admin.html">Institution registration →</a></span>
+        </div>
+
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/api.js"></script>
+<script>
+    if (typeof Auth !== 'undefined' && Auth.getToken()) window.location.href = 'dashboard.html';
+    if (typeof loadUniversities !== 'undefined') loadUniversities('university');
+
+    document.getElementById('reg-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+
+        const payload = {
+            firstName: document.getElementById('firstName').value.trim(),
+            lastName:  document.getElementById('lastName').value.trim() || null,
+            email:     document.getElementById('email').value.trim(),
+            password:  document.getElementById('password').value,
+            uniId:     document.getElementById('university').value,
+            role:      'VIEWER'
+        };
+
+        if (!payload.uniId) { showToast('Please select your university', 'error'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Creating account…';
+
+        try {
+            await AuthAPI.register(payload);
+            showToast('Account created', 'success');
+            setTimeout(() => window.location.href = 'dashboard.html', 600);
+        } catch (err) {
+            showToast(err.message || 'Registration failed', 'error');
+            btn.disabled = false;
+            btn.innerHTML = 'Create Account';
+        }
+    });
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = '0.2s';
+            setTimeout(() => toast.remove(), 200);
+        }, 3500);
+    }
+</script>
+</body>
+</html>

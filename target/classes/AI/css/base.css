@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Sora:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --black:             #0B0B0B;
+    --white:             #FAFAF8;
+    --off-white:         #F2F0EB;
+    --cream:             #EDE8DF;
+    --gray-50:           #F5F4F1;
+    --gray-100:          #EDECEA;
+    --gray-200:          #E0DED9;
+    --gray-300:          #C8C5BE;
+    --gray-400:          #A8A49C;
+    --gray-500:          #8A857C;
+    --gray-600:          #5E5A54;
+    --gray-700:          #3F3C38;
+    --gray-800:          #2A2825;
+    --gray-900:          #1A1816;
+
+    --dark-surface:      #161412;
+    --dark-surface-2:    #1E1B18;
+    --dark-border:       #2C2924;
+    --dark-border-hover: #3D3830;
+
+    --accent:            #C8A96E;
+    --accent-dim:        #8B7040;
+    --accent-glow:       rgba(200, 169, 110, 0.12);
+
+    --radius-xs:   3px;
+    --radius-sm:   6px;
+    --radius-md:   10px;
+    --radius-lg:   16px;
+    --radius-pill: 99px;
+
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans:  'Sora', system-ui, sans-serif;
+    --font-mono:  'IBM Plex Mono', ui-monospace, monospace;
+
+    --max-width: 720px;
+
+    --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { font-family: var(--font-sans); background: var(--black); color: var(--white); line-height: 1.6; }
+a        { text-decoration: none; color: inherit; }
+button   { cursor: pointer; font-family: var(--font-sans); border: none; background: none; }
+input    { font-family: var(--font-sans); }
+textarea { font-family: var(--font-sans); }
+
+.container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 28px;
+}
+
+.serif { font-family: var(--font-serif); }
+.mono  { font-family: var(--font-mono); }
+
+/* Grain overlay */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-size: 180px;
+}

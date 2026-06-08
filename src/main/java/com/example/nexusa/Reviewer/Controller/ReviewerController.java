@@ -32,7 +32,45 @@ public class ReviewerController {
             return ResponseEntity.badRequest().build();
         }
     }
+// ── Volume marks ──────────────────────────────────────────────────────────
 
+    @PostMapping("/volume/mark")
+    public ResponseEntity<UUID> markVolume(@RequestBody MarkVolumeDTO dto) {
+        try {
+            return ResponseEntity.ok(reviewerService.markVolume(dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/volume/marks")
+    public ResponseEntity<List<VolumeMarkResponseDTO>> getMyVolumeMarks() {
+        try {
+            return ResponseEntity.ok(reviewerService.getMyVolumeMarks());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/volume/mark/{markId}")
+    public ResponseEntity<Void> deleteVolumeMark(@PathVariable UUID markId) {
+        try {
+            reviewerService.deleteVolumeMark(markId);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/central/{centralCivId}/volume/from-mark")
+    public ResponseEntity<UUID> addVolumeFromMark(@PathVariable UUID centralCivId,
+                                                  @RequestBody AddVolumeFromMarkDTO dto) {
+        try {
+            return ResponseEntity.ok(centralService.addVolumeFromMark(centralCivId, dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
     @GetMapping("/version/{versionId}")
     public ResponseEntity<VersionDetailDTO> getVersionDetail(@PathVariable UUID versionId) {
         try {
@@ -44,12 +82,13 @@ public class ReviewerController {
 // ── Delete entry from central ─────────────────────────────────────────────
 
     // ── Delete entry from central ─────────────────────────────────────────────
+// In ReviewerController.java, fix this:
     @DeleteMapping("/central/{centralCivId}/volume/{volumeId}/entry/{entryId}")
     public ResponseEntity<Void> deleteEntry(@PathVariable UUID centralCivId,
                                             @PathVariable UUID volumeId,
-                                            @PathVariable UUID centralEntryId) {
+                                            @PathVariable UUID entryId) {  // was centralEntryId, must match path var name
         try {
-            centralService.deleteEntry(centralCivId, volumeId, centralEntryId);
+            centralService.deleteEntry(centralCivId, volumeId, entryId);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();

@@ -125,23 +125,47 @@ document.addEventListener('DOMContentLoaded', () => {
         div.className = 'msg msg-oracle';
         div.id = id;
         div.innerHTML = `
-            <div class="msg-oracle-meta">
-                <span class="oracle-dot"></span>
-                <span class="oracle-label">Oracle</span>
-            </div>
-            <div class="typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-            </div>`;
+        <div class="msg-oracle-meta">
+            <span class="oracle-dot"></span>
+            <span class="oracle-label">Oracle</span>
+        </div>
+        <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <span class="typing-status" id="${id}-status">Analyzing query…</span>
+        </div>`;
         messagesEl.appendChild(div);
         scrollToBottom();
+
+        const phases = [
+            [0,    'Analyzing query…'],
+            [600,  'Searching civilization records…'],
+            [1400, 'Ranking historical sources…'],
+            [2200, 'Consulting the Oracle…'],
+        ];
+
+        const timers = [];
+        phases.forEach(([delay, label]) => {
+            timers.push(setTimeout(() => {
+                const el = document.getElementById(`${id}-status`);
+                if (el) el.textContent = label;
+            }, delay));
+        });
+
+        // store timers on the element so removeTyping can cancel them
+        div._typingTimers = timers;
         return id;
     }
 
     function removeTyping(id) {
-        document.getElementById(id)?.remove();
+        const el = document.getElementById(id);
+        if (el) {
+            (el._typingTimers || []).forEach(clearTimeout);
+            el.remove();
+        }
     }
+
 
     function hideEmpty() {
         document.getElementById('chat-empty')?.remove();

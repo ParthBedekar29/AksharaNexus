@@ -92,3 +92,7 @@ export const deleteVolume = (cId, vId)       => req('DELETE', `/reviewer/central
 export const addEntriesBatch = (cId, vId, dto) => req('POST', `/reviewer/central/${cId}/volume/${vId}/entries/batch`, dto);
 export const deleteMark = (markId) => req('DELETE', `/reviewer/entry/mark/${markId}`);
 export const getVersionMarks = (versionId) => req('GET', `/reviewer/version/${versionId}/marks`);
+export const markVolume       = (dto)    => req('POST',   '/reviewer/volume/mark', dto);
+export const getMyVolumeMarks = ()       => req('GET',    '/reviewer/volume/marks');
+export const deleteVolumeMark = (markId) => req('DELETE', `/reviewer/volume/mark/${markId}`);
+export const addVolumeFromMark = (cId, dto) => req('POST', `/reviewer/central/${cId}/volume/from-mark`, dto);

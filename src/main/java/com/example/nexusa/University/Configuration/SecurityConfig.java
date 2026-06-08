@@ -37,7 +37,7 @@
                     "http://localhost:63342",
                     "https://contribute-aksharanexus.netlify.app",
                     "https://reviewer-aksharanexus.netlify.app",
-                    "https://aksharaoracle.netlify.app/"
+                    "https://aksharaoracle.netlify.app"
             ));
 
             config.setAllowedMethods(List.of(

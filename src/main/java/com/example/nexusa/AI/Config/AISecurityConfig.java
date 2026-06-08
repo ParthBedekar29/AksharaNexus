@@ -44,7 +44,7 @@ public class AISecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of(
-                "https://aksharaoracle.netlify.app"
+                "https://aksharaoracle.netlify.app","http://localhost:63342"
         ));
 
         config.setAllowedMethods(List.of(

@@ -158,6 +158,7 @@
         isLoggedIn, getReviewerEmail,
         getVersionDetail, getVersionMarks
     } from './api.js';
+    import {markVolume} from "./api";
 
     const versionMarksMap = new Map();
 
@@ -264,6 +265,29 @@
             return;
         }
         body.innerHTML = renderTreeNode(tree, true, v);
+        // After setting body.innerHTML:
+        body.querySelectorAll('.mark-vol-btn').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+                btn.disabled = true;
+                btn.textContent = 'Saving…';
+                try {
+                    await markVolume({
+                        versionId: v.versionId,
+                        nodeId:    btn.dataset.nodeId,
+                        volumeTitle: btn.dataset.title,
+                        startYear: btn.dataset.start ? parseInt(btn.dataset.start) : null,
+                        endYear:   btn.dataset.end   ? parseInt(btn.dataset.end)   : null,
+                    });
+                    btn.textContent = '✓ Marked';
+                    btn.style.color = 'var(--muted)';
+                } catch(err) {
+                    btn.disabled = false;
+                    btn.textContent = '+ Mark Volume';
+                    alert(err.message);
+                }
+            });
+        });
     }
 
     function renderTreeNode(node, isRoot, version, parentData = null) {
@@ -292,8 +316,17 @@
 
         const labelHtml = isEntry
             ? `<span class="tree-node-label entry-label" onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>${statusBadgeHtml}`
-            : `<span class="tree-node-label" style="font-weight:${isVolume ? '500' : '400'}">${d.title || 'Untitled Structure'}</span>`;
-
+            : isVolume
+                ? `<span class="tree-node-label" style="font-weight:500">${d.title || 'Untitled Structure'}</span>
+       <button class="mark-vol-btn"
+               data-node-id="${node.nodeId}"
+               data-title="${(d.title||'').replace(/"/g,'&quot;')}"
+               data-start="${d.startYear ?? ''}"
+               data-end="${d.endYear ?? ''}"
+               style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--rule);border-radius:4px;background:var(--card);color:var(--teal);cursor:pointer;white-space:nowrap;flex-shrink:0">
+         + Mark Volume
+       </button>`
+                : `<span class="tree-node-label">${d.title || 'Untitled Structure'}</span>`;
         const childrenHtml = hasChildren
             ? `<div class="tree-children-wrap">${children.map(c => renderTreeNode(c, false, version, d)).join('')}</div>`
             : '';

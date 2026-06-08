@@ -1,13 +1,11 @@
 // com/example/nexusa/Reviewer/Service/ReviewerService.java
 package com.example.nexusa.Reviewer.Service;
 
-import com.example.nexusa.Model.CVersion;
+import com.example.nexusa.Model.*;
 import com.example.nexusa.Model.Central.CentralCivilization;
-import com.example.nexusa.Model.EntryReviewMark;
 import com.example.nexusa.Model.Enums.EntryMarkStatus;
 import com.example.nexusa.Model.Enums.ReviewStatus;
-import com.example.nexusa.Model.Reviewer;
-import com.example.nexusa.Model.ReviewerCode;
+import com.example.nexusa.Model.Enums.VolumeMarkStatus;
 import com.example.nexusa.Repository.*;
 import com.example.nexusa.Repository.Central.CentralCivilizationRepository;
 import com.example.nexusa.Reviewer.Config.ReviewerJwtService;
@@ -34,11 +32,12 @@ public class ReviewerService {
     private final CivilizationRepository civilizationRepository;
     private final EntryReviewMarkRepository entryReviewMarkRepository;
     private final CentralCivilizationRepository centralCivRepo;
+    private final VolumeReviewMarkRepository volumeReviewMarkRepository;
 
     public ReviewerService(ReviewerRepository reviewerRepository,
                            ReviewerCodeRepository reviewerCodeRepository,
                            CVersionRepository cVersionRepository,
-                           ReviewerJwtService reviewerJwtService, CivilizationRepository civilizationRepository, EntryReviewMarkRepository entryReviewMarkRepository, CentralCivilizationRepository centralCivRepo) {
+                           ReviewerJwtService reviewerJwtService, CivilizationRepository civilizationRepository, EntryReviewMarkRepository entryReviewMarkRepository, CentralCivilizationRepository centralCivRepo, VolumeReviewMarkRepository volumeReviewMarkRepository) {
         this.reviewerRepository     = reviewerRepository;
         this.reviewerCodeRepository = reviewerCodeRepository;
         this.cVersionRepository     = cVersionRepository;
@@ -46,6 +45,7 @@ public class ReviewerService {
         this.civilizationRepository = civilizationRepository;
         this.entryReviewMarkRepository = entryReviewMarkRepository;
         this.centralCivRepo = centralCivRepo;
+        this.volumeReviewMarkRepository = volumeReviewMarkRepository;
         this.passwordEncoder        = new BCryptPasswordEncoder();
     }
 
@@ -321,7 +321,75 @@ public class ReviewerService {
 
         return dto;
     }
+// ── Inject in constructor ─────────────────────────────────────────────────
+// private final VolumeReviewMarkRepository volumeReviewMarkRepository;
 
+    @Transactional
+    public UUID markVolume(MarkVolumeDTO dto) {
+        Reviewer reviewer = getAuthenticatedReviewer();
+
+        CVersion version = cVersionRepository.findById(dto.getVersionId())
+                .orElseThrow(() -> new RuntimeException("Version not found"));
+
+        VolumeReviewMark mark = volumeReviewMarkRepository
+                .findByReviewer_ReviewerIdAndVersion_VersionIdAndNodeId(
+                        reviewer.getReviewerId(), dto.getVersionId(), dto.getNodeId())
+                .orElse(new VolumeReviewMark());
+
+        mark.setReviewer(reviewer);
+        mark.setVersion(version);
+        mark.setNodeId(dto.getNodeId());
+        mark.setVolumeTitle(dto.getVolumeTitle());
+        mark.setStartYear(dto.getStartYear());
+        mark.setEndYear(dto.getEndYear());
+        mark.setMarkStatus(VolumeMarkStatus.SAVED);
+        mark.setReviewerNote(dto.getReviewerNote());
+
+        VolumeReviewMark saved = volumeReviewMarkRepository.save(mark);
+        return saved.getMarkId();
+    }
+
+    public List<VolumeMarkResponseDTO> getMyVolumeMarks() {
+        Reviewer reviewer = getAuthenticatedReviewer();
+        return volumeReviewMarkRepository
+                .findByReviewer_ReviewerId(reviewer.getReviewerId())
+                .stream().map(this::toVolumeMarkDTO).toList();
+    }
+
+    @Transactional
+    public void deleteVolumeMark(UUID markId) {
+        Reviewer reviewer = getAuthenticatedReviewer();
+        if (!volumeReviewMarkRepository.existsByMarkIdAndReviewer_ReviewerId(
+                markId, reviewer.getReviewerId()))
+            throw new RuntimeException("Volume mark not found or does not belong to you");
+        volumeReviewMarkRepository.deleteByMarkIdAndReviewer_ReviewerId(
+                markId, reviewer.getReviewerId());
+    }
+
+    private VolumeMarkResponseDTO toVolumeMarkDTO(VolumeReviewMark m) {
+        VolumeMarkResponseDTO dto = new VolumeMarkResponseDTO();
+        dto.setMarkId(m.getMarkId());
+        dto.setVersionId(m.getVersion().getVersionId());
+        dto.setNodeId(m.getNodeId());
+        dto.setVolumeTitle(m.getVolumeTitle());
+        dto.setStartYear(m.getStartYear());
+        dto.setEndYear(m.getEndYear());
+        dto.setMarkStatus(m.getMarkStatus());
+        dto.setReviewerNote(m.getReviewerNote());
+        dto.setMarkedAt(m.getMarkedAt());
+
+        if (m.getVersion().getCivilization() != null) {
+            var civ = m.getVersion().getCivilization();
+            dto.setCivTitle(civ.getTitle());
+            if (civ.getUniversity() != null)
+                dto.setUniversityName(civ.getUniversity().getName());
+        }
+        if (m.getVersion().getCommittedBy() != null) {
+            var u = m.getVersion().getCommittedBy();
+            dto.setCommittedByName(u.getFirstName() + " " + u.getLastName());
+        }
+        return dto;
+    }
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private Reviewer getAuthenticatedReviewer() {

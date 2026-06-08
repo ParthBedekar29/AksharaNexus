@@ -4,17 +4,16 @@ import com.example.nexusa.Model.CVersion;
 import com.example.nexusa.Model.Central.*;
 import com.example.nexusa.Model.Enums.EntryMarkStatus;
 import com.example.nexusa.Model.Reviewer;
-import com.example.nexusa.Repository.CVersionRepository;
+import com.example.nexusa.Model.VolumeReviewMark;
+import com.example.nexusa.Repository.*;
 import com.example.nexusa.Repository.Central.*;
-import com.example.nexusa.Repository.CivilizationRepository;
-import com.example.nexusa.Repository.EntryReviewMarkRepository;
 import com.example.nexusa.Reviewer.Dto.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.impl.security.EdwardsCurve;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import com.example.nexusa.Repository.ReviewerRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ public class CentralService {
     private final CivilizationRepository civilizationRepository;
     private final EntryReviewMarkRepository entryReviewMarkRepository;
     private final ReviewerService reviewerService;
+    private final VolumeReviewMarkRepository volumeReviewMarkRepository;
 
     public CentralService(CentralCivilizationRepository centralCivRepo,
                           CentralVolumeRepository centralVolumeRepo,
@@ -44,7 +44,7 @@ public class CentralService {
                           ReviewerRepository reviewerRepository,
                           ObjectMapper objectMapper,
                           CivilizationRepository civilizationRepository,
-                          EntryReviewMarkRepository entryReviewMarkRepository, ReviewerService reviewerService) {
+                          EntryReviewMarkRepository entryReviewMarkRepository, ReviewerService reviewerService, VolumeReviewMarkRepository volumeReviewMarkRepository) {
         this.centralCivRepo = centralCivRepo;
         this.centralVolumeRepo = centralVolumeRepo;
         this.centralEntryRepo = centralEntryRepo;
@@ -55,6 +55,7 @@ public class CentralService {
         this.civilizationRepository = civilizationRepository;
         this.entryReviewMarkRepository = entryReviewMarkRepository;
         this.reviewerService = reviewerService;
+        this.volumeReviewMarkRepository = volumeReviewMarkRepository;
     }
 
     // ── Auth helper ───────────────────────────────────────────────────────────
@@ -483,7 +484,38 @@ public class CentralService {
         dto.setVolumes(volumeDTOs);
         return dto;
     }
+// ── Inject VolumeReviewMarkRepository ────────────────────────────────────
+// private final VolumeReviewMarkRepository volumeReviewMarkRepository;
 
+    @Transactional
+    public UUID addVolumeFromMark(UUID centralCivId, AddVolumeFromMarkDTO dto) {
+        Reviewer reviewer = getAuthenticatedReviewer();
+
+        CentralCivilization civ = centralCivRepo.findById(centralCivId)
+                .orElseThrow(() -> new RuntimeException("Central civilization not found"));
+
+        VolumeReviewMark mark = volumeReviewMarkRepository.findById(dto.getVolumeMarkId())
+                .orElseThrow(() -> new RuntimeException("Volume mark not found"));
+
+        if (centralVolumeRepo.existsByCivilization_CentralCivIdAndPosition(
+                centralCivId, dto.getPosition()))
+            throw new RuntimeException("Position " + dto.getPosition()
+                    + " is already taken in this civilization");
+
+        CentralVolume volume = new CentralVolume();
+        volume.setCivilization(civ);
+        volume.setTitle(mark.getVolumeTitle());
+        volume.setStartYear(mark.getStartYear());
+        volume.setEndYear(mark.getEndYear());
+        volume.setPosition(dto.getPosition());
+        volume.setCreatedBy(reviewer);
+        centralVolumeRepo.save(volume);
+
+        civ.setLastUpdatedAt(LocalDateTime.now());
+        centralCivRepo.save(civ);
+
+        return volume.getVolumeId();
+    }
     private void reindexVolumePositions(UUID volumeId) {
         List<CentralEntry> remaining = centralEntryRepo
                 .findByVolume_VolumeIdOrderByStartYearAscEndYearAsc(volumeId);

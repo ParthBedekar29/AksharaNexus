@@ -24,11 +24,11 @@ public class AIJwtFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String path = request.getRequestURI();
+        System.out.println("AIJwtFilter running on: " + path);
         if (!path.startsWith("/oracle") && !path.startsWith("/ai/auth")) {
             chain.doFilter(request, response);
             return;
         }
-
         String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
             chain.doFilter(request, response);

@@ -183,7 +183,20 @@ const AuthAPI = {
         Auth.setToken(token);
         return token;
     },
-    async getUniversities() { return apiFetch('/auth/universities'); }
+    async getUniversities() { return apiFetch('/auth/universities'); },
+    async forgotPassword(email, adminCode = null) {
+        return apiFetch('/auth/forgot-password', {
+            method: 'POST',
+            body: { email, adminCode }
+        });
+    },
+
+    async resetPassword(token, newPassword) {
+        return apiFetch('/auth/reset-password', {
+            method: 'POST',
+            body: { token, newPassword }
+        });
+    }
 };
 
 // ── Civilization API ──────────────────────────────────────────────────────────

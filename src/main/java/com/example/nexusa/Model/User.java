@@ -31,7 +31,7 @@ public class User {
     @Column(name = "last_name")
     private String lastName;
 
-    @Column(name = "role",nullable = false)
+    @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role;
 
@@ -41,5 +41,8 @@ public class User {
 
     @Column(name="created_at")
     private LocalDateTime timestamp;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
 
 }

@@ -96,21 +96,17 @@
 
         try {
             await AuthAPI.register(payload);
-
-            // Show confirmation UI — no token yet, email must be verified first
+// with this:
             document.getElementById('reg-form').innerHTML = `
             <div style="text-align:center; padding: 24px 0;">
                 <div style="font-size: 2.5rem; margin-bottom: 16px;">📬</div>
                 <h2 style="margin-bottom: 8px;">Check your inbox</h2>
-                <p style="color: #555; margin-bottom: 24px;">
+                <p style="color:#555; margin-bottom: 24px;">
                     We sent a verification link to <strong>${payload.email}</strong>.<br/>
-                    Click it to activate your account, then sign in.
+                    Click it to activate your account. The link expires in 24 hours.
                 </p>
-                <a href="login.html" class="btn-submit" style="display:inline-block; text-decoration:none;">
-                    Go to Sign In
-                </a>
-            </div>
-        `;
+                <a href="login.html" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Sign In</a>
+            </div>`;
         } catch (err) {
             showToast(err.message || 'Registration failed', 'error');
             btn.disabled = false;

@@ -2,6 +2,7 @@ package com.example.nexusa.AI.Config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -23,6 +24,7 @@ public class AISecurityConfig {
     }
 
     @Bean
+    @Order(2)
     public SecurityFilterChain aiFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/oracle/**", "/ai/auth/**")

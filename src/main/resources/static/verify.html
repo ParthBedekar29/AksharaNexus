@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify Email — AksharaNexus</title>
+    <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+<nav class="nav">
+    <a href="index.html" class="nav-logo">AksharaNexus</a>
+</nav>
+<div class="auth-wrap">
+    <div class="auth-box" id="auth-box">
+        <div style="text-align:center; padding: 24px 0;">
+            <div style="font-size: 2.5rem; margin-bottom: 16px;">⏳</div>
+            <h2>Verifying your email…</h2>
+        </div>
+    </div>
+</div>
+<script src="js/api.js"></script>
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const box = document.getElementById('auth-box');
+
+    if (!token) {
+        box.innerHTML = `
+            <div style="text-align:center; padding: 24px 0;">
+                <div style="font-size: 2.5rem; margin-bottom: 16px;">⚠️</div>
+                <h2 style="margin-bottom: 8px;">Invalid link</h2>
+                <p style="color:#555; margin-bottom: 24px;">This verification link is missing or malformed.</p>
+                <a href="login.html" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Sign In</a>
+            </div>`;
+    } else {
+        (async () => {
+            try {
+                await apiFetch(`/auth/verify?token=${encodeURIComponent(token)}`, { method: 'GET' });
+                box.innerHTML = `
+                    <div style="text-align:center; padding: 24px 0;">
+                        <div style="font-size: 2.5rem; margin-bottom: 16px;">✅</div>
+                        <h2 style="margin-bottom: 8px;">Email verified!</h2>
+                        <p style="color:#555; margin-bottom: 24px;">Your account is now active. You can sign in.</p>
+                        <a href="login.html" class="btn-submit" style="display:inline-block; text-decoration:none;">Sign In</a>
+                    </div>`;
+            } catch (err) {
+                box.innerHTML = `
+                    <div style="text-align:center; padding: 24px 0;">
+                        <div style="font-size: 2.5rem; margin-bottom: 16px;">❌</div>
+                        <h2 style="margin-bottom: 8px;">Verification failed</h2>
+                        <p style="color:#555; margin-bottom: 24px;">${err.message || 'This link may have expired or already been used.'}</p>
+                        <a href="register.html" class="btn-submit" style="display:inline-block; text-decoration:none;">Register again</a>
+                    </div>`;
+            }
+        })();
+    }
+</script>
+</body>
+</html>

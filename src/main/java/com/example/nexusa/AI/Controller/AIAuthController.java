@@ -1,62 +1,64 @@
 package com.example.nexusa.AI.Controller;
 
 import com.example.nexusa.AI.Config.AIJwtUtil;
-import com.example.nexusa.Model.PublicUser;
-import com.example.nexusa.Model.User;
-import com.example.nexusa.Repository.PublicUserRepository;
-import com.example.nexusa.Repository.UserRepository;
+import com.example.nexusa.Model.*;
+import com.example.nexusa.Repository.*;
+import com.example.nexusa.University.Service.EmailService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/ai/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")  // open to Flutter mobile too
+@CrossOrigin(origins = "*")
 public class AIAuthController {
 
     private final UserRepository userRepository;
     private final PublicUserRepository publicUserRepository;
+    private final PublicUserEmailVerificationTokenRepository verificationTokenRepository;
+    private final PublicUserPasswordResetTokenRepository resetTokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AIJwtUtil aiJwtUtil;  // fixed casing
+    private final AIJwtUtil aiJwtUtil;
+    private final EmailService emailService;
 
+    // ── Login ─────────────────────────────────────────────────────────────────
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
-        // Check public users first
+
         Optional<PublicUser> publicUser = publicUserRepository.findByEmail(req.getEmail());
         if (publicUser.isPresent()) {
-            if (!passwordEncoder.matches(req.getPassword(), publicUser.get().getPassword())) {
+            PublicUser u = publicUser.get();
+            if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
                 return ResponseEntity.status(401).body("Invalid credentials");
             }
-            String token = aiJwtUtil.generateToken(
-                    publicUser.get().getEmail(), publicUser.get().getRole().name());
-            return ResponseEntity.ok(new LoginResponse(
-                    token, publicUser.get().getFirstName(),
-                    publicUser.get().getEmail(), publicUser.get().getRole().name()
-            ));
+            if (!u.isEmailVerified()) {
+                return ResponseEntity.status(403).body("Please verify your email before logging in.");
+            }
+            String token = aiJwtUtil.generateToken(u.getEmail(), u.getRole().name());
+            return ResponseEntity.ok(new LoginResponse(token, u.getFirstName(), u.getEmail(), u.getRole().name()));
         }
 
-        // Fall back to internal users
         Optional<User> internalUser = userRepository.findByEmail(req.getEmail());
         if (internalUser.isPresent()) {
-            if (!passwordEncoder.matches(req.getPassword(), internalUser.get().getPassword())) {
+            User u = internalUser.get();
+            if (!passwordEncoder.matches(req.getPassword(), u.getPassword())) {
                 return ResponseEntity.status(401).body("Invalid credentials");
             }
-            String token = aiJwtUtil.generateToken(
-                    internalUser.get().getEmail(), internalUser.get().getRole().name());
-            return ResponseEntity.ok(new LoginResponse(
-                    token, internalUser.get().getFirstName(),
-                    internalUser.get().getEmail(), internalUser.get().getRole().name()
-            ));
+            String token = aiJwtUtil.generateToken(u.getEmail(), u.getRole().name());
+            return ResponseEntity.ok(new LoginResponse(token, u.getFirstName(), u.getEmail(), u.getRole().name()));
         }
 
         return ResponseEntity.status(401).body("Invalid credentials");
     }
 
+    // ── Register ──────────────────────────────────────────────────────────────
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
         if (publicUserRepository.findByEmail(req.getEmail()).isPresent()) {
@@ -68,31 +70,114 @@ public class AIAuthController {
         user.setLastName(req.getLastName());
         user.setEmail(req.getEmail());
         user.setPassword(passwordEncoder.encode(req.getPassword()));
-
+        user.setEmailVerified(false);
         publicUserRepository.save(user);
 
-        String token = aiJwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        return ResponseEntity.status(201).body(new LoginResponse(
-                token, user.getFirstName(), user.getEmail(), user.getRole().name()
-        ));
+        PublicUserEmailVerificationToken verificationToken = new PublicUserEmailVerificationToken();
+        verificationToken.setToken(UUID.randomUUID());
+        verificationToken.setPublicUser(user);
+        verificationToken.setExpiresAt(LocalDateTime.now().plusHours(24));
+        verificationTokenRepository.save(verificationToken);
+
+        emailService.sendPublicUserVerificationEmail(
+                user.getEmail(), user.getFirstName(), verificationToken.getToken().toString());
+
+        return ResponseEntity.status(201).body("Registration successful. Please check your email to verify your account.");
     }
 
-    @Data
-    public static class LoginRequest {
+    // ── Verify email ──────────────────────────────────────────────────────────
+    @GetMapping("/verify")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        Optional<PublicUserEmailVerificationToken> opt =
+                verificationTokenRepository.findByTokenAndUsedFalse(UUID.fromString(token));
+
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(400).body("Invalid or already used verification link.");
+        }
+        PublicUserEmailVerificationToken vToken = opt.get();
+        if (vToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(400).body("Verification link has expired. Please register again.");
+        }
+
+        vToken.setUsed(true);
+        verificationTokenRepository.save(vToken);
+
+        PublicUser user = vToken.getPublicUser();
+        user.setEmailVerified(true);
+        publicUserRepository.save(user);
+
+        return ResponseEntity.ok("Email verified successfully. You can now log in.");
+    }
+
+    // ── Forgot password ───────────────────────────────────────────────────────
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        Optional<PublicUser> opt = publicUserRepository.findByEmail(req.getEmail());
+        if (opt.isEmpty()) {
+            return ResponseEntity.ok("If that email is registered, a reset link has been sent.");
+        }
+
+        PublicUser user = opt.get();
+
+        PublicUserPasswordResetToken resetToken = new PublicUserPasswordResetToken();
+        resetToken.setToken(UUID.randomUUID());
+        resetToken.setPublicUser(user);
+        resetToken.setExpiresAt(LocalDateTime.now().plusHours(1));
+        resetTokenRepository.save(resetToken);
+
+        emailService.sendPublicUserPasswordResetEmail(
+                user.getEmail(), user.getFirstName(), resetToken.getToken().toString());
+
+        return ResponseEntity.ok("If that email is registered, a reset link has been sent.");
+    }
+
+    // ── Reset password ────────────────────────────────────────────────────────
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest req) {
+        Optional<PublicUserPasswordResetToken> opt =
+                resetTokenRepository.findByTokenAndUsedFalse(UUID.fromString(req.getToken()));
+
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(400).body("Invalid or already used reset link.");
+        }
+        PublicUserPasswordResetToken rToken = opt.get();
+        if (rToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(400).body("Reset link has expired. Please request a new one.");
+        }
+
+        rToken.setUsed(true);
+        resetTokenRepository.save(rToken);
+
+        PublicUser user = rToken.getPublicUser();
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        publicUserRepository.save(user);
+
+        return ResponseEntity.ok("Password reset successfully. You can now log in.");
+    }
+
+    // ── DTOs ──────────────────────────────────────────────────────────────────
+    @Data public static class LoginRequest {
         private String email;
         private String password;
     }
 
-    @Data
-    public static class RegisterRequest {
+    @Data public static class RegisterRequest {
         private String firstName;
         private String lastName;
         private String email;
         private String password;
     }
 
-    @Data
-    public static class LoginResponse {
+    @Data public static class ForgotPasswordRequest {
+        private String email;
+    }
+
+    @Data public static class ResetPasswordRequest {
+        private String token;
+        private String newPassword;
+    }
+
+    @Data public static class LoginResponse {
         private final String token;
         private final String firstName;
         private final String email;

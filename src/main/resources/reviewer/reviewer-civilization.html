@@ -322,39 +322,12 @@
         let labelHtml = '';
 
         if (isEntry) {
-            // ── Entry: clickable title + inline Approve / Reject / Revision buttons ──
-            const statusBadgeHtml = currentStatus
-                ? `<span class="tree-status-badge ${currentStatus}" style="font-size:0.65rem;padding:1px 6px;border-radius:3px;white-space:nowrap">${currentStatus.replace(/_/g,' ')}</span>`
-                : '';
 
-            // If already marked, show a compact "marked" indicator instead of action buttons
-            const actionHtml = currentStatus
-                ? `<span class="tree-entry-btn marked">✓ ${currentStatus.replace(/_/g,' ')}</span>`
-                : `<div class="entry-action-group">
-                     <button class="tree-entry-btn approve"
-                             data-action="APPROVED"
-                             data-node-id="${node.nodeId}"
-                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
-                       ✓ Approve
-                     </button>
-                     <button class="tree-entry-btn revise"
-                             data-action="REVISION_REQUESTED"
-                             data-node-id="${node.nodeId}"
-                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
-                       ↩ Revise
-                     </button>
-                     <button class="tree-entry-btn reject"
-                             data-action="REJECTED"
-                             data-node-id="${node.nodeId}"
-                             data-entry-title="${(d.title||'').replace(/"/g,'&quot;')}">
-                       ✕ Reject
-                     </button>
-                   </div>`;
+
 
             labelHtml = `
                 <span class="tree-node-label entry-label"
-                      onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>
-                ${actionHtml}`;
+                      onclick="window.location.href='${entryUrl}'">${d.title || 'Untitled Node'}</span>`;
 
         } else if (isVolume) {
             // ── Volume: title + Mark Volume button ────────────────────────
@@ -417,59 +390,7 @@
             });
         });
 
-        // ── Entry mark buttons (Approve / Revise / Reject) ────────────────
-        body.querySelectorAll('.tree-entry-btn[data-action]').forEach(btn => {
-            btn.addEventListener('click', async e => {
-                e.stopPropagation();
 
-                const action     = btn.dataset.action;
-                const nodeId     = btn.dataset.nodeId;
-                const entryTitle = btn.dataset.entryTitle || 'Untitled Entry';
-
-                // For rejections/revisions a note is required — prompt inline
-                let reviewerNote = null;
-                if (action === 'APPROVED') {
-                    const input = prompt('Add an approval note (optional — press OK to skip):');
-                    if (input === null) return; // cancelled
-                    reviewerNote = input.trim() || null;
-                } else if (action === 'REJECTED' || action === 'REVISION_REQUESTED') {
-                    const input = prompt(`Note required for ${action.replace(/_/g,' ')} (cannot be empty):`);
-                    if (input === null) return;
-                    if (!input.trim()) { toast('A note is required for this decision.', 'error'); return; }
-                    reviewerNote = input.trim();
-                }
-
-                // Disable all three buttons in this entry's group while submitting
-                const group = btn.closest('.entry-action-group');
-                if (group) group.querySelectorAll('.tree-entry-btn').forEach(b => { b.disabled = true; });
-
-                try {
-                    await markEntry({
-                        versionId,
-                        nodeId,
-                        entryTitle,
-                        markStatus:   action,
-                        reviewerNote: reviewerNote,
-                    });
-
-                    // Update map so re-renders reflect the new status
-                    versionMarksMap.set(nodeId, action);
-
-                    // Replace the button group with a static "marked" chip
-                    if (group) {
-                        const chip = document.createElement('span');
-                        chip.className   = 'tree-entry-btn marked';
-                        chip.textContent = `✓ ${action.replace(/_/g,' ')}`;
-                        group.replaceWith(chip);
-                    }
-
-                    toast(`Entry ${action.replace(/_/g,' ').toLowerCase()}`, 'success');
-                } catch(err) {
-                    if (group) group.querySelectorAll('.tree-entry-btn').forEach(b => { b.disabled = false; });
-                    toast(err.message, 'error');
-                }
-            });
-        });
     }
 
     window.toggleNode = function(btn) {

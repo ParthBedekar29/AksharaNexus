@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifying email — AksharaNexus</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/auth.css">
+</head>
+<body data-page="verify-email">
+<nav class="auth-nav">
+    <div class="container">
+        <a href="index.html" class="auth-nav-brand">AksharaNexus</a>
+    </div>
+</nav>
+<div class="auth-body">
+    <!-- Loading -->
+    <div class="auth-card auth-success-card" id="loading-card">
+        <div class="auth-spinner"></div>
+        <p class="auth-sub" style="margin-top:16px">Verifying your email…</p>
+    </div>
+
+    <!-- Success -->
+    <div class="auth-card auth-success-card" id="success-card" style="display:none">
+        <div class="auth-success-icon" style="color:#5aaa72">✓</div>
+        <h1 class="auth-title">Email verified</h1>
+        <p class="auth-sub">Your account is active. You can now sign in.</p>
+        <a href="login.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Sign in</a>
+    </div>
+
+    <!-- Error -->
+    <div class="auth-card auth-success-card" id="error-card" style="display:none">
+        <div class="auth-success-icon" style="color:#e05a5a">✕</div>
+        <h1 class="auth-title">Verification failed</h1>
+        <p class="auth-sub" id="error-msg">This link is invalid or has already been used.</p>
+        <a href="register.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Register again</a>
+    </div>
+</div>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

@@ -32,6 +32,7 @@ public class User {
     private String lastName;
 
     @Column(name = "role",nullable = false)
+    @Enumerated(EnumType.STRING)
     private Role role;
 
     @ManyToOne

@@ -50,7 +50,7 @@ const api = {
             },
             body: JSON.stringify({ query: question })
         });
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {  // ← add 403
             this.clearSession();
             window.location.href = 'login.html';
             throw new Error('Session expired');

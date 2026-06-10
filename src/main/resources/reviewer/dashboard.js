@@ -838,7 +838,6 @@ searchInput.addEventListener('input', () => {
                             <div class="metadata-card-detail-item"><span>Institution</span>${r.universityName || '—'}</div>
                             <div class="metadata-card-detail-item"><span>Period</span>${formatYear(r.startYear)} – ${formatYear(r.endYear)}</div>
                             <div class="metadata-card-detail-item"><span>Submitted entries</span>${r.entryCount ?? '—'}</div>
-                            <div class="metadata-card-detail-item"><span>Civilization ID</span>Internal reference only</div>
                         </div>
                     </div>`).join('')}
                 </div>`;

@@ -427,14 +427,16 @@
                 const entryTitle = btn.dataset.entryTitle || 'Untitled Entry';
 
                 // For rejections/revisions a note is required — prompt inline
-                let reviewerNote = '';
-                if (action === 'REJECTED' || action === 'REVISION_REQUESTED') {
-                    reviewerNote = prompt(`Note required for ${action.replace(/_/g,' ')} (cannot be empty):`);
-                    if (reviewerNote === null) return;          // cancelled
-                    if (!reviewerNote.trim()) {
-                        toast('A note is required for this decision.', 'error');
-                        return;
-                    }
+                let reviewerNote = null;
+                if (action === 'APPROVED') {
+                    const input = prompt('Add an approval note (optional — press OK to skip):');
+                    if (input === null) return; // cancelled
+                    reviewerNote = input.trim() || null;
+                } else if (action === 'REJECTED' || action === 'REVISION_REQUESTED') {
+                    const input = prompt(`Note required for ${action.replace(/_/g,' ')} (cannot be empty):`);
+                    if (input === null) return;
+                    if (!input.trim()) { toast('A note is required for this decision.', 'error'); return; }
+                    reviewerNote = input.trim();
                 }
 
                 // Disable all three buttons in this entry's group while submitting
@@ -447,7 +449,7 @@
                         nodeId,
                         entryTitle,
                         markStatus:   action,
-                        reviewerNote: reviewerNote.trim(),
+                        reviewerNote: reviewerNote,
                     });
 
                     // Update map so re-renders reflect the new status

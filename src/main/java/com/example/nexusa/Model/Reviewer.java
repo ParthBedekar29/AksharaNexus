@@ -35,6 +35,7 @@ public class Reviewer {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean emailVerified = false;
 }

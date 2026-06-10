@@ -64,7 +64,17 @@ export function logout() {
     clearToken();
     window.location.href = 'login.html';
 }
+export async function verifyEmail(token) {
+    return req('GET', `/reviewer/auth/verify?token=${encodeURIComponent(token)}`);
+}
 
+export async function forgotPassword(email) {
+    return req('POST', '/reviewer/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token, newPassword) {
+    return req('POST', '/reviewer/auth/reset-password', { token, newPassword });
+}
 // ── Civilization browse (latest version per civ, all universities) ────────
 // Replaces old getPendingVersions / getReviewedVersions
 export const getAllLatestVersions = () => req('GET', '/reviewer/civilizations/latest');

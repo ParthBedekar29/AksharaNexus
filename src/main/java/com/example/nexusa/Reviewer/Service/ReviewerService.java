@@ -10,6 +10,7 @@ import com.example.nexusa.Repository.*;
 import com.example.nexusa.Repository.Central.CentralCivilizationRepository;
 import com.example.nexusa.Reviewer.Config.ReviewerJwtService;
 import com.example.nexusa.Reviewer.Dto.*;
+import com.example.nexusa.University.Service.EmailService;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+
 public class ReviewerService {
 
     private final ReviewerRepository reviewerRepository;
@@ -33,11 +35,14 @@ public class ReviewerService {
     private final EntryReviewMarkRepository entryReviewMarkRepository;
     private final CentralCivilizationRepository centralCivRepo;
     private final VolumeReviewMarkRepository volumeReviewMarkRepository;
+    private final ReviewerEmailVerificationTokenRepository reviewerEmailTokenRepository;
+    private final ReviewerPasswordResetTokenRepository reviewerPasswordResetTokenRepository;
+    private final EmailService emailService;
 
     public ReviewerService(ReviewerRepository reviewerRepository,
                            ReviewerCodeRepository reviewerCodeRepository,
                            CVersionRepository cVersionRepository,
-                           ReviewerJwtService reviewerJwtService, CivilizationRepository civilizationRepository, EntryReviewMarkRepository entryReviewMarkRepository, CentralCivilizationRepository centralCivRepo, VolumeReviewMarkRepository volumeReviewMarkRepository) {
+                           ReviewerJwtService reviewerJwtService, CivilizationRepository civilizationRepository, EntryReviewMarkRepository entryReviewMarkRepository, CentralCivilizationRepository centralCivRepo, VolumeReviewMarkRepository volumeReviewMarkRepository, ReviewerEmailVerificationTokenRepository reviewerEmailTokenRepository, ReviewerPasswordResetTokenRepository reviewerPasswordResetTokenRepository, EmailService emailService) {
         this.reviewerRepository     = reviewerRepository;
         this.reviewerCodeRepository = reviewerCodeRepository;
         this.cVersionRepository     = cVersionRepository;
@@ -46,28 +51,26 @@ public class ReviewerService {
         this.entryReviewMarkRepository = entryReviewMarkRepository;
         this.centralCivRepo = centralCivRepo;
         this.volumeReviewMarkRepository = volumeReviewMarkRepository;
+        this.reviewerEmailTokenRepository = reviewerEmailTokenRepository;
+        this.reviewerPasswordResetTokenRepository = reviewerPasswordResetTokenRepository;
+        this.emailService = emailService;
         this.passwordEncoder        = new BCryptPasswordEncoder();
     }
 
     // ── Auth ──────────────────────────────────────────────────────────────────
-
     @Transactional
     public void register(ReviewerRegisterDTO dto) {
-        // 1. Look up a code row that matches BOTH the code value AND the email
         ReviewerCode reviewerCode = reviewerCodeRepository
                 .findByCodeAndEmail(dto.getCode(), dto.getEmail())
                 .orElseThrow(() -> new RuntimeException(
                         "Invalid or unrecognized registration code for this email"));
 
-        // 2. Make sure the code hasn't been used already
         if (Boolean.TRUE.equals(reviewerCode.getUsed()))
             throw new RuntimeException("This registration code has already been used");
 
-        // 3. Make sure the email isn't already registered
         if (reviewerRepository.existsByEmail(dto.getEmail()))
             throw new RuntimeException("An account with this email already exists");
 
-        // 4. Create the reviewer
         Reviewer reviewer = new Reviewer();
         reviewer.setEmail(dto.getEmail());
         reviewer.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -75,9 +78,18 @@ public class ReviewerService {
         reviewer.setLastName(dto.getLastName());
         reviewerRepository.save(reviewer);
 
-        // 5. Mark the code as used so it can't be reused
         reviewerCode.setUsed(true);
         reviewerCodeRepository.save(reviewerCode);
+
+        // Send verification email
+        reviewerEmailTokenRepository.deleteByReviewer_ReviewerId(reviewer.getReviewerId());
+        ReviewerEmailVerificationToken token = new ReviewerEmailVerificationToken();
+        token.setToken(UUID.randomUUID());
+        token.setReviewer(reviewer);
+        token.setExpiresAt(LocalDateTime.now().plusHours(24));
+        reviewerEmailTokenRepository.save(token);
+        emailService.sendReviewerVerificationEmail(
+                reviewer.getEmail(), reviewer.getFirstName(), token.getToken().toString());
     }
 
     public String login(ReviewerLoginDTO dto) {
@@ -87,7 +99,76 @@ public class ReviewerService {
         if (!passwordEncoder.matches(dto.getPassword(), reviewer.getPassword()))
             throw new RuntimeException("Invalid credentials");
 
+        if (!reviewer.isEmailVerified())
+            throw new RuntimeException("Please verify your email before logging in");
+
         return reviewerJwtService.generateToken(reviewer.getEmail(), "REVIEWER");
+    }
+
+    @Transactional
+    public void verifyEmail(String rawToken) {
+        UUID tokenUUID;
+        try { tokenUUID = UUID.fromString(rawToken); }
+        catch (IllegalArgumentException e) { throw new RuntimeException("Invalid token format"); }
+
+        ReviewerEmailVerificationToken token = reviewerEmailTokenRepository
+                .findByToken(tokenUUID)
+                .orElseThrow(() -> new RuntimeException("Token not found"));
+
+        if (token.isUsed()) throw new RuntimeException("This link has already been used");
+        if (token.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new RuntimeException("Link has expired. Please register again.");
+
+        token.setUsed(true);
+        reviewerEmailTokenRepository.save(token);
+
+        Reviewer reviewer = token.getReviewer();
+        reviewer.setEmailVerified(true);
+        reviewerRepository.save(reviewer);
+    }
+
+    @Transactional
+    public void forgotPassword(String email) {
+        if (email == null || email.isBlank()) throw new RuntimeException("Email is required");
+
+        Reviewer reviewer = reviewerRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("No account exists with this email"));
+
+        reviewerPasswordResetTokenRepository.deleteByReviewer_ReviewerId(reviewer.getReviewerId());
+
+        ReviewerPasswordResetToken token = new ReviewerPasswordResetToken();
+        token.setToken(UUID.randomUUID());
+        token.setReviewer(reviewer);
+        token.setExpiresAt(LocalDateTime.now().plusHours(1));
+        reviewerPasswordResetTokenRepository.save(token);
+
+        emailService.sendReviewerPasswordResetEmail(
+                reviewer.getEmail(), reviewer.getFirstName(), token.getToken().toString());
+    }
+
+    @Transactional
+    public void resetPassword(String rawToken, String newPassword) {
+        UUID tokenUUID;
+        try { tokenUUID = UUID.fromString(rawToken); }
+        catch (IllegalArgumentException e) { throw new RuntimeException("Invalid token format"); }
+
+        ReviewerPasswordResetToken token = reviewerPasswordResetTokenRepository
+                .findByToken(tokenUUID)
+                .orElseThrow(() -> new RuntimeException("Token not found"));
+
+        if (token.isUsed()) throw new RuntimeException("This reset link has already been used");
+        if (token.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new RuntimeException("Reset link has expired. Please request a new one.");
+
+        if (!newPassword.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"))
+            throw new RuntimeException("Password must contain at least 8 characters, 1 uppercase, 1 number and 1 symbol");
+
+        Reviewer reviewer = token.getReviewer();
+        reviewer.setPassword(passwordEncoder.encode(newPassword));
+        reviewerRepository.save(reviewer);
+
+        token.setUsed(true);
+        reviewerPasswordResetTokenRepository.save(token);
     }
     @Transactional
     public UUID markEntryForCentral(MarkEntryForCentralDTO dto) {

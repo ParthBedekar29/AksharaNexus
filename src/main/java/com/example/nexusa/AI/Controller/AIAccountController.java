@@ -5,6 +5,7 @@ import com.example.nexusa.Model.PublicUser;
 import com.example.nexusa.Repository.PublicUserEmailVerificationTokenRepository;
 import com.example.nexusa.Repository.PublicUserPasswordResetTokenRepository;
 import com.example.nexusa.Repository.PublicUserRepository;
+import jakarta.transaction.Transactional;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -59,8 +60,8 @@ public class AIAccountController {
         return ResponseEntity.ok("Password updated successfully.");
     }
 
-    // ── Delete account ────────────────────────────────────────────────────────
     @DeleteMapping("/delete")
+    @Transactional
     public ResponseEntity<?> deleteAccount(@RequestBody DeleteAccountRequest req,
                                            Principal principal) {
         Optional<PublicUser> opt = publicUserRepository.findByEmail(principal.getName());
@@ -71,11 +72,13 @@ public class AIAccountController {
             return ResponseEntity.status(400).body("Incorrect password.");
         }
 
-        // Delete dependent tokens first, then user
         verificationTokenRepository.deleteAllByPublicUser(user);
-        resetTokenRepository.deleteAllByPublicUser(user);
-        publicUserRepository.delete(user);
+        verificationTokenRepository.flush();
 
+        resetTokenRepository.deleteAllByPublicUser(user);
+        resetTokenRepository.flush();
+
+        publicUserRepository.delete(user);
         return ResponseEntity.ok("Account deleted.");
     }
 

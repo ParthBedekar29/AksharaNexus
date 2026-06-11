@@ -5,29 +5,37 @@ import {
     getCentralCivilizations, getCentralDetail,
     createCentralCivilization, addVolume, addEntry, addEntriesBatch,
     deleteEntry, deleteVolume,
-    flagDivergence, getCivMetadata,deleteMark
+    flagDivergence, getCivMetadata, deleteMark,
+    addVolumeFromMark, getMyVolumeMarks
 } from './api.js';
+
 let isBatchMode = false;
+
 // ── Auth Guard ────────────────────────────────────────────────────────────
 if (!isLoggedIn()) { window.location.href = 'login.html'; }
 
 // ── State Management ──────────────────────────────────────────────────────
-let currentView                 = 'civilizations';
-let currentCivId                = null;
-let currentCivTitle             = '';    // Tracks open context for target compiling
-let currentVolId                = null;
-let approvedMarks               = [];
-let selectedEntriesForDivergence = [];   // Track entries selected for conflict marking
-let selectedCivMetadata         = null;
-let selectedMarkIds = new Set();
+let currentView                  = 'civilizations';
+let currentCivId                 = null;
+let currentCivTitle              = '';
+let currentVolId                 = null;
+let approvedMarks                = [];
+let selectedEntriesForDivergence = [];
+let selectedCivMetadata          = null;
+let selectedMarkIds              = new Set();
+
+// ── Volume modal state ────────────────────────────────────────────────────
+let activeVolTab         = 'marks';   // 'marks' | 'manual'
+let selectedVolumeMarkId = null;
+
 // ── JWT Payload Extraction ────────────────────────────────────────────────
 function decodeJwt(token) {
     try {
         return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
     } catch { return {}; }
 }
-const token    = localStorage.getItem('reviewer_token');
-const payload  = decodeJwt(token || '');
+const token   = localStorage.getItem('reviewer_token');
+const payload = decodeJwt(token || '');
 const revEmail = payload.sub || '';
 
 document.getElementById('nav-reviewer-name').textContent = revEmail;
@@ -59,8 +67,8 @@ document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {
         showView(btn.dataset.view);
         if (btn.dataset.view === 'civilizations') loadCivilizations();
-        if (btn.dataset.view === 'marks')        loadMarks();
-        if (btn.dataset.view === 'central')       loadCentral();
+        if (btn.dataset.view === 'marks')         loadMarks();
+        if (btn.dataset.view === 'central')        loadCentral();
     });
 });
 
@@ -105,14 +113,14 @@ function numOrNull(id) {
     return v === '' || v == null ? null : parseInt(v);
 }
 
-// ── Ingress Funnel: Incoming University Branches ─────────────────────────
+// ── Ingress Funnel: Incoming University Branches ──────────────────────────
 async function loadCivilizations() {
     const el = document.getElementById('civs-list');
     el.innerHTML = skeleton();
     try {
         const versions = await getAllLatestVersions();
-        document.getElementById('stat-civs').textContent  = versions.length;
-        document.getElementById('pill-civs').textContent  = versions.length;
+        document.getElementById('stat-civs').textContent = versions.length;
+        document.getElementById('pill-civs').textContent = versions.length;
         if (!versions.length) {
             el.innerHTML = emptyState('◉', 'No incoming branches', 'No universities have submitted timeline proposals yet.');
             return;
@@ -151,6 +159,7 @@ function openVersionDetail(versionId, civTitle) {
 
 document.getElementById('btn-refresh-civs').addEventListener('click', loadCivilizations);
 
+// ── My Marks ──────────────────────────────────────────────────────────────
 async function loadMarks() {
     const el = document.getElementById('marks-list');
     el.innerHTML = skeleton();
@@ -176,37 +185,30 @@ async function loadMarks() {
 
         el.innerHTML = toolbar + marks.map(m => markRow(m)).join('');
 
-        // ── Select all ────────────────────────────────────────────────────
         document.getElementById('marks-select-all').addEventListener('change', e => {
             const checked = e.target.checked;
             document.querySelectorAll('.mark-row-checkbox').forEach(cb => {
                 cb.checked = checked;
-                const markId = cb.dataset.markId;
-                checked ? selectedMarkIds.add(markId) : selectedMarkIds.delete(markId);
+                checked ? selectedMarkIds.add(cb.dataset.markId) : selectedMarkIds.delete(cb.dataset.markId);
             });
             syncDeleteButton();
         });
 
-        // ── Per-row checkboxes ────────────────────────────────────────────
         document.querySelectorAll('.mark-row-checkbox').forEach(cb => {
             cb.addEventListener('change', e => {
                 e.target.checked
                     ? selectedMarkIds.add(cb.dataset.markId)
                     : selectedMarkIds.delete(cb.dataset.markId);
-
-                // sync select-all state
-                const all  = document.querySelectorAll('.mark-row-checkbox');
-                const allChecked = [...all].every(c => c.checked);
+                const all         = document.querySelectorAll('.mark-row-checkbox');
+                const allChecked  = [...all].every(c => c.checked);
                 const noneChecked = [...all].every(c => !c.checked);
                 const selectAllCb = document.getElementById('marks-select-all');
-                selectAllCb.checked = allChecked;
+                selectAllCb.checked       = allChecked;
                 selectAllCb.indeterminate = !allChecked && !noneChecked;
-
                 syncDeleteButton();
             });
         });
 
-        // ── Single-row delete buttons ─────────────────────────────────────
         document.querySelectorAll('.btn-delete-mark').forEach(btn => {
             btn.addEventListener('click', async e => {
                 e.stopPropagation();
@@ -221,18 +223,16 @@ async function loadMarks() {
             });
         });
 
-        // ── Bulk delete button ────────────────────────────────────────────
         document.getElementById('btn-delete-selected').addEventListener('click', async () => {
             if (!selectedMarkIds.size) return;
             if (!confirm(`Delete ${selectedMarkIds.size} mark${selectedMarkIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
 
             const btn = document.getElementById('btn-delete-selected');
-            btn.disabled = true;
+            btn.disabled    = true;
             btn.textContent = 'Deleting…';
 
-            const ids = [...selectedMarkIds];
+            const ids     = [...selectedMarkIds];
             const results = await Promise.allSettled(ids.map(id => deleteMark(id)));
-
             const failed  = results.filter(r => r.status === 'rejected').length;
             const deleted = results.filter(r => r.status === 'fulfilled').length;
 
@@ -253,6 +253,7 @@ function syncDeleteButton() {
     btn.disabled = count === 0;
     document.getElementById('selected-count').textContent = count;
 }
+
 function markRow(m) {
     const statusColors = {
         APPROVED:           'background:#D1FAE5;color:#065F46;border:1px solid #A7F3D0',
@@ -276,9 +277,10 @@ function markRow(m) {
       <button class="icon-btn btn-delete-mark" data-mark-id="${m.markId}" title="Delete mark">✕</button>
     </div>`;
 }
+
 document.getElementById('btn-refresh-marks').addEventListener('click', loadMarks);
 
-// ── Central Master Compiler Index ────────────────────────────────────────
+// ── Central Master Compiler Index ─────────────────────────────────────────
 async function loadCentral() {
     const el = document.getElementById('central-grid');
     el.innerHTML = skeleton(4);
@@ -314,7 +316,7 @@ function centralCard(c) {
     </div>`;
 }
 
-// ── Central Panel Orchestration Workspace ────────────────────────────────
+// ── Central Panel ─────────────────────────────────────────────────────────
 async function openCentralDetail(centralCivId) {
     currentCivId = centralCivId;
     selectedEntriesForDivergence = [];
@@ -324,8 +326,8 @@ async function openCentralDetail(centralCivId) {
     content.innerHTML = skeleton(3);
     try {
         const civ = await getCentralDetail(centralCivId);
-        currentCivTitle = civ.title || ''; // Cache active workspace context for downstream filters
-        content.innerHTML = renderCentralDetail(civ);
+        currentCivTitle       = civ.title || '';
+        content.innerHTML     = renderCentralDetail(civ);
         wireCentralDetailButtons(civ);
     } catch (e) {
         content.innerHTML = `<p style="padding:20px;color:#991B1B;font-weight:500;">${e.message}</p>`;
@@ -385,11 +387,11 @@ function renderCentralDetail(civ) {
       ${volumes || emptyState('📚', 'No volumes', 'Add a volume to begin building the chronology.')}
     </div>`;
 }
+
 function entryRow(e, civId, volId) {
-    const divBadge = e.isDivergent
-        ? `<span class="divergence-badge">⚑ Divergent</span>` : '';
-    const title = e.title || e.entryTitle || 'Unnamed Node';
-    const years = (e.startYear != null || e.endYear != null)
+    const divBadge = e.isDivergent ? `<span class="divergence-badge">⚑ Divergent</span>` : '';
+    const title    = e.title || e.entryTitle || 'Unnamed Node';
+    const years    = (e.startYear != null || e.endYear != null)
         ? `${formatYear(e.startYear)} – ${formatYear(e.endYear)}`
         : '<span style="color:var(--faint);font-style:italic">No date range</span>';
 
@@ -403,9 +405,7 @@ function entryRow(e, civId, volId) {
         <input type="checkbox" class="divergence-selector-checkbox" style="pointer-events:none;">
         <div style="min-width:0">
           <div class="entry-title">${title}</div>
-          <div style="font-family:var(--mono);font-size:0.68rem;color:var(--faint);margin-top:2px">
-            ${years}
-          </div>
+          <div style="font-family:var(--mono);font-size:0.68rem;color:var(--faint);margin-top:2px">${years}</div>
         </div>
       </div>
       <span class="entry-meta">${e.sourceUniversityName || 'Unknown Institution'}</span>
@@ -417,11 +417,15 @@ function entryRow(e, civId, volId) {
               title="Remove entry from archive">✕</button>
     </div>`;
 }
-function wireCentralDetailButtons(civ) {
-    document.getElementById('btn-add-volume').addEventListener('click', () =>
-        openModal('modal-add-volume'));
 
-    // ── Delete entry buttons ──────────────────────────────────────────────
+function wireCentralDetailButtons(civ) {
+
+    // ── Add Volume — opens two-tab modal ──────────────────────────────────
+    document.getElementById('btn-add-volume').addEventListener('click', () => {
+        openVolumeModal();
+    });
+
+    // ── Delete entry ──────────────────────────────────────────────────────
     document.querySelectorAll('.btn-delete-entry').forEach(btn => {
         btn.addEventListener('click', async e => {
             e.stopPropagation();
@@ -437,7 +441,7 @@ function wireCentralDetailButtons(civ) {
         });
     });
 
-    // ── Delete volume buttons ─────────────────────────────────────────────
+    // ── Delete volume ─────────────────────────────────────────────────────
     document.querySelectorAll('.btn-delete-volume').forEach(btn => {
         btn.addEventListener('click', async e => {
             e.stopPropagation();
@@ -452,34 +456,34 @@ function wireCentralDetailButtons(civ) {
         });
     });
 
-    // ── Single entry link buttons ─────────────────────────────────────────
+    // ── Single entry link ─────────────────────────────────────────────────
     document.querySelectorAll('[data-add-entry-vol]').forEach(btn => {
         btn.addEventListener('click', e => {
             e.stopPropagation();
             currentVolId = btn.dataset.addEntryVol;
-            isBatchMode = false;
+            isBatchMode  = false;
             openAddEntryModal();
         });
     });
 
-    // ── Batch link buttons ────────────────────────────────────────────────
+    // ── Batch link ────────────────────────────────────────────────────────
     document.querySelectorAll('[data-batch-add-vol]').forEach(btn => {
         btn.addEventListener('click', e => {
             e.stopPropagation();
             currentVolId = btn.dataset.batchAddVol;
-            isBatchMode = true;
+            isBatchMode  = true;
             openAddEntryModal();
         });
     });
 
-    // ── Divergence selector + flag button (unchanged logic, kept here) ────
+    // ── Divergence selector ───────────────────────────────────────────────
     const divergenceSubmitBtn = document.getElementById('btn-flag-div');
     divergenceSubmitBtn.addEventListener('click', () => {
         if (selectedEntriesForDivergence.length === 2) {
             openModal('modal-flag-divergence');
-            document.getElementById('div-primary-id').value   = selectedEntriesForDivergence[0].id;
+            document.getElementById('div-primary-id').value        = selectedEntriesForDivergence[0].id;
             document.getElementById('div-primary-name').textContent = selectedEntriesForDivergence[0].title;
-            document.getElementById('div-conflict-id').value  = selectedEntriesForDivergence[1].id;
+            document.getElementById('div-conflict-id').value       = selectedEntriesForDivergence[1].id;
             document.getElementById('div-conflict-name').textContent = selectedEntriesForDivergence[1].title;
         }
     });
@@ -510,17 +514,153 @@ function wireCentralDetailButtons(civ) {
             if (count === 2) {
                 divergenceSubmitBtn.removeAttribute('disabled');
                 divergenceSubmitBtn.style.cssText = 'background:var(--rev-ink);opacity:1;cursor:pointer';
-                divergenceSubmitBtn.textContent = '⚑ Flag Divergence';
+                divergenceSubmitBtn.textContent   = '⚑ Flag Divergence';
             } else {
                 divergenceSubmitBtn.setAttribute('disabled', 'true');
                 divergenceSubmitBtn.style.cssText = 'background:#4B5563;opacity:0.6;cursor:not-allowed';
-                divergenceSubmitBtn.textContent = `⚑ Flag Divergence (${count}/2)`;
+                divergenceSubmitBtn.textContent   = `⚑ Flag Divergence (${count}/2)`;
             }
         });
     });
 }
-// ── Chronology Compiler: Map Approved Elements (Scoped Filter) ───────────
-// ── Chronology Compiler: Map Approved Elements (Scoped Filter) ───────────
+
+// ── Volume Modal: Two-tab (From Marks / Manual) ───────────────────────────
+
+function setVolTab(tab) {
+    activeVolTab = tab;
+    document.querySelectorAll('.vol-tab').forEach(t => {
+        const active = t.dataset.tab === tab;
+        t.style.color        = active ? 'var(--teal)' : 'var(--muted)';
+        t.style.borderBottom = active ? '2px solid var(--teal)' : '2px solid transparent';
+        t.style.fontWeight   = active ? '500' : '400';
+    });
+    document.getElementById('vol-panel-marks').style.display  = tab === 'marks'  ? 'block' : 'none';
+    document.getElementById('vol-panel-manual').style.display = tab === 'manual' ? 'block' : 'none';
+}
+
+function openVolumeModal() {
+    // Reset state
+    selectedVolumeMarkId = null;
+    document.getElementById('vol-mark-position').value = '';
+    ['vol-title', 'vol-start', 'vol-end', 'vol-position'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // Default to marks tab and load
+    setVolTab('marks');
+    loadVolumeMarksIntoModal();
+    openModal('modal-add-volume');
+}
+
+// Wire tab buttons (runs once at boot since they live in the static HTML)
+document.querySelectorAll('.vol-tab').forEach(tab => {
+    tab.addEventListener('click', () => setVolTab(tab.dataset.tab));
+});
+
+async function loadVolumeMarksIntoModal() {
+    const el = document.getElementById('vol-marks-list');
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:0.82rem">Loading saved volume marks…</div>';
+    try {
+        const marks = await getMyVolumeMarks();
+        if (!marks.length) {
+            el.innerHTML = `
+                <div style="padding:24px 16px;text-align:center;color:var(--faint);font-size:0.82rem;line-height:1.6">
+                    No volume marks yet.<br>
+                    Open a civilization in the read-only view and click <strong style="color:var(--teal)">+ Mark Volume</strong> on any volume node.
+                </div>`;
+            return;
+        }
+
+        el.innerHTML = marks.map(m => `
+            <div class="vol-mark-pick-row" data-mark-id="${m.markId}"
+                 style="display:flex;flex-direction:column;gap:4px;padding:12px 14px;cursor:pointer;
+                        border-radius:6px;margin-bottom:6px;border:1px solid var(--rule);
+                        transition:background 0.12s,border-color 0.12s">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.88rem;font-weight:500;color:var(--ink);flex:1">${m.volumeTitle}</span>
+                <span style="font-family:var(--mono);font-size:0.65rem;color:var(--faint);white-space:nowrap">
+                  ${formatYear(m.startYear)} – ${formatYear(m.endYear)}
+                </span>
+              </div>
+              <div style="font-family:var(--mono);font-size:0.7rem;color:var(--faint)">
+                ${m.civTitle || '—'} · ${m.universityName || '—'}
+              </div>
+              ${m.reviewerNote ? `<div style="font-size:0.72rem;color:var(--muted);font-style:italic">${m.reviewerNote}</div>` : ''}
+            </div>`).join('');
+
+        el.querySelectorAll('.vol-mark-pick-row').forEach(row => {
+            row.addEventListener('click', () => {
+                el.querySelectorAll('.vol-mark-pick-row').forEach(r => {
+                    r.style.background   = '';
+                    r.style.borderColor  = 'var(--rule)';
+                });
+                row.style.background  = 'var(--teal-bg, rgba(13,148,136,0.07))';
+                row.style.borderColor = 'var(--teal)';
+                selectedVolumeMarkId  = row.dataset.markId;
+            });
+        });
+    } catch (e) {
+        el.innerHTML = `<div style="padding:16px;color:var(--rej-ink);font-size:0.82rem">${e.message}</div>`;
+    }
+}
+
+// ── Submit Volume (handles both tabs) ─────────────────────────────────────
+document.getElementById('btn-submit-volume').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-submit-volume');
+    btn.disabled    = true;
+    btn.textContent = 'Structuring…';
+
+    try {
+        if (activeVolTab === 'marks') {
+            // ── From Marks path ───────────────────────────────────────────
+            if (!selectedVolumeMarkId) {
+                toast('Select a volume mark from the list', 'error');
+                return;
+            }
+            const position = parseInt(document.getElementById('vol-mark-position').value) || 1;
+            await addVolumeFromMark(currentCivId, {
+                volumeMarkId: selectedVolumeMarkId,
+                position,
+            });
+            toast('Volume added from mark', 'success');
+
+        } else {
+            // ── Manual path ───────────────────────────────────────────────
+            const dto = {
+                title:     document.getElementById('vol-title').value.trim(),
+                startYear: numOrNull('vol-start'),
+                endYear:   numOrNull('vol-end'),
+                position:  parseInt(document.getElementById('vol-position').value) || 1,
+            };
+            if (!dto.title) {
+                toast('Volume title is required', 'error');
+                return;
+            }
+            await addVolume(currentCivId, dto);
+            toast('Volume added', 'success');
+        }
+
+        closeModal('modal-add-volume');
+        openCentralDetail(currentCivId);
+
+        // Reset both sets of fields
+        selectedVolumeMarkId = null;
+        document.getElementById('vol-mark-position').value = '';
+        ['vol-title', 'vol-start', 'vol-end', 'vol-position'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+    } catch (e) {
+        toast(e.message, 'error');
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Add Volume';
+    }
+});
+
+// ── Add Entry Modal ───────────────────────────────────────────────────────
 async function openAddEntryModal() {
     const modalTitle = document.querySelector('#modal-add-entry .modal-title');
     if (modalTitle) modalTitle.textContent = isBatchMode
@@ -533,10 +673,9 @@ async function openAddEntryModal() {
     listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--faint);font-size:0.82rem">Loading approved entries…</div>';
 
     try {
-        const marks = await getMyMarks();
+        const marks      = await getMyMarks();
         const allApproved = marks.filter(m => m.markStatus?.toUpperCase() === 'APPROVED');
-
-        approvedMarks = allApproved.length ? allApproved : [];
+        approvedMarks    = allApproved.length ? allApproved : [];
 
         if (!approvedMarks.length) {
             listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--faint);font-size:0.82rem">
@@ -549,7 +688,8 @@ async function openAddEntryModal() {
             : '';
 
         listEl.innerHTML = hint + approvedMarks.map((m, i) => `
-            <div class="browser-row approved-entry-pick-row" data-idx="${i}" style="flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px">
+            <div class="browser-row approved-entry-pick-row" data-idx="${i}"
+                 style="flex-direction:column;align-items:flex-start;gap:6px;padding:14px 16px">
               <div style="display:flex;width:100%;align-items:center;gap:10px">
                 ${isBatchMode ? `<input type="checkbox" class="batch-checkbox" style="flex-shrink:0;width:15px;height:15px">` : ''}
                 <div style="font-size:0.9rem;font-weight:500;color:var(--ink);flex:1">${m.entryTitle || 'Untitled Entry'}</div>
@@ -557,20 +697,17 @@ async function openAddEntryModal() {
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;width:100%;padding-left:${isBatchMode ? '25px' : '0'}">
                 <div style="font-family:var(--mono);font-size:0.72rem;color:var(--faint)">
-                  <span style="color:var(--teal)">Civilization</span><br>
-                  ${m.civTitle || '—'}
+                  <span style="color:var(--teal)">Civilization</span><br>${m.civTitle || '—'}
                 </div>
                 <div style="font-family:var(--mono);font-size:0.72rem;color:var(--faint)">
-                  <span style="color:var(--teal)">Institution</span><br>
-                  ${m.universityName || '—'}
+                  <span style="color:var(--teal)">Institution</span><br>${m.universityName || '—'}
                 </div>
                 <div style="font-family:var(--mono);font-size:0.72rem;color:var(--faint)">
                   <span style="color:var(--teal)">Period</span><br>
                   ${m.civStartYear != null ? formatYear(m.civStartYear) + ' – ' + formatYear(m.civEndYear) : '—'}
                 </div>
                 <div style="font-family:var(--mono);font-size:0.72rem;color:var(--faint)">
-                  <span style="color:var(--teal)">Committed by</span><br>
-                  ${m.committedByName || '—'}
+                  <span style="color:var(--teal)">Committed by</span><br>${m.committedByName || '—'}
                 </div>
               </div>
               ${m.reviewerNote ? `<div style="font-size:0.75rem;color:var(--muted);font-style:italic;padding-left:${isBatchMode ? '25px' : '0'}">Note: ${m.reviewerNote}</div>` : ''}
@@ -594,14 +731,14 @@ async function openAddEntryModal() {
 }
 
 document.getElementById('btn-submit-entry').addEventListener('click', async () => {
-    const btn = document.getElementById('btn-submit-entry');
+    const btn      = document.getElementById('btn-submit-entry');
     const position = parseInt(document.getElementById('entry-position').value) || 1;
 
     if (isBatchMode) {
         const selectedRows = [...document.querySelectorAll('.approved-entry-pick-row.selected')];
         if (!selectedRows.length) { toast('Select at least one entry', 'error'); return; }
 
-        btn.disabled = true;
+        btn.disabled    = true;
         btn.textContent = 'Linking…';
         try {
             const entries = selectedRows.map((row, idx) => {
@@ -614,7 +751,7 @@ document.getElementById('btn-submit-entry').addEventListener('click', async () =
             });
             const result = await addEntriesBatch(currentCivId, currentVolId, { entries });
             const added  = result.addedEntryIds?.length || 0;
-            const failed = result.failures?.length || 0;
+            const failed = result.failures?.length       || 0;
             toast(`${added} entr${added !== 1 ? 'ies' : 'y'} linked${failed ? `, ${failed} failed` : ''}`,
                 failed ? 'info' : 'success');
             if (failed) result.failures.forEach(f => console.warn('Batch fail:', f.nodeId, f.reason));
@@ -623,7 +760,7 @@ document.getElementById('btn-submit-entry').addEventListener('click', async () =
         } catch (e) {
             toast(e.message, 'error');
         } finally {
-            btn.disabled = false;
+            btn.disabled    = false;
             btn.textContent = 'Add to Archive';
         }
     } else {
@@ -632,7 +769,7 @@ document.getElementById('btn-submit-entry').addEventListener('click', async () =
         const m = approvedMarks[parseInt(selectedRow.dataset.idx, 10)];
         if (!m) { toast('Could not resolve entry. Try again.', 'error'); return; }
 
-        btn.disabled = true;
+        btn.disabled    = true;
         btn.textContent = 'Linking…';
         try {
             await addEntry(currentCivId, currentVolId, {
@@ -646,23 +783,22 @@ document.getElementById('btn-submit-entry').addEventListener('click', async () =
         } catch (e) {
             toast(e.message, 'error');
         } finally {
-            btn.disabled = false;
+            btn.disabled    = false;
             btn.textContent = 'Add to Archive';
         }
     }
 });
 
-// ── Central Civilization Generation ──────────────────────────────────────
+// ── New Central Civilization ──────────────────────────────────────────────
 let searchTimeout = null;
 const searchInput = document.getElementById('new-civ-search');
-const pickerEl = document.getElementById('civ-metadata-picker');
+const pickerEl    = document.getElementById('civ-metadata-picker');
 
-// Reset states on new civ button click
 document.getElementById('btn-new-civ').addEventListener('click', () => {
-    searchInput.value = '';
-    pickerEl.innerHTML = '';
+    searchInput.value      = '';
+    pickerEl.innerHTML     = '';
     pickerEl.style.display = 'none';
-    selectedCivMetadata = null;
+    selectedCivMetadata    = null;
     openModal('modal-new-civ');
 });
 
@@ -670,28 +806,28 @@ searchInput.addEventListener('input', () => {
     clearTimeout(searchTimeout);
     const query = searchInput.value.trim();
     if (!query) {
-        pickerEl.innerHTML = '';
+        pickerEl.innerHTML     = '';
         pickerEl.style.display = 'none';
-        selectedCivMetadata = null;
+        selectedCivMetadata    = null;
         return;
     }
     searchTimeout = setTimeout(async () => {
         try {
-            pickerEl.innerHTML = '<div style="padding: 10px; text-align: center; color: var(--faint);">Searching university records...</div>';
+            pickerEl.innerHTML     = '<div style="padding:10px;text-align:center;color:var(--faint);">Searching university records...</div>';
             pickerEl.style.display = 'block';
 
             const results = await getCivMetadata(query);
             if (!results || results.length === 0) {
-                pickerEl.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--faint); font-size: 0.85rem;">No matching university submissions found for "${query}"</div>`;
+                pickerEl.innerHTML  = `<div style="padding:16px;text-align:center;color:var(--faint);font-size:0.85rem;">No matching university submissions found for "${query}"</div>`;
                 selectedCivMetadata = null;
                 return;
             }
 
             pickerEl.innerHTML = `
-                <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--faint); font-weight: 500; margin-bottom: 8px; font-family: var(--mono);">Select University Source Version</div>
+                <div style="font-size:0.75rem;text-transform:uppercase;color:var(--faint);font-weight:500;margin-bottom:8px;font-family:var(--mono);">Select University Source Version</div>
                 <div class="metadata-card-grid">
-                    ${results.map((r, idx) => // Inside the results.map() in the searchInput event handler, replace the card template:
-                `<div class="metadata-card" data-idx="${idx}">
+                    ${results.map((r, idx) => `
+                    <div class="metadata-card" data-idx="${idx}">
                         <div class="metadata-card-header">
                             <span class="metadata-card-uni">${r.universityName || 'Unknown University'}</span>
                             <span class="metadata-card-years">${formatYear(r.startYear)} – ${formatYear(r.endYear)}</span>
@@ -702,24 +838,20 @@ searchInput.addEventListener('input', () => {
                             <div class="metadata-card-detail-item"><span>Institution</span>${r.universityName || '—'}</div>
                             <div class="metadata-card-detail-item"><span>Period</span>${formatYear(r.startYear)} – ${formatYear(r.endYear)}</div>
                             <div class="metadata-card-detail-item"><span>Submitted entries</span>${r.entryCount ?? '—'}</div>
-                            <div class="metadata-card-detail-item"><span>Civilization ID</span>Internal reference only</div>
                         </div>
                     </div>`).join('')}
-                </div>
-            `;
+                </div>`;
 
-            // Add click listener to cards
             pickerEl.querySelectorAll('.metadata-card').forEach(card => {
                 card.addEventListener('click', () => {
                     pickerEl.querySelectorAll('.metadata-card').forEach(c => c.classList.remove('selected'));
                     card.classList.add('selected');
-                    const idx = parseInt(card.dataset.idx, 10);
-                    selectedCivMetadata = results[idx];
+                    selectedCivMetadata = results[parseInt(card.dataset.idx, 10)];
                 });
             });
 
         } catch (e) {
-            pickerEl.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--rej-ink); font-size: 0.85rem;">Failed to fetch records: ${e.message}</div>`;
+            pickerEl.innerHTML  = `<div style="padding:16px;text-align:center;color:var(--rej-ink);font-size:0.85rem;">Failed to fetch records: ${e.message}</div>`;
             selectedCivMetadata = null;
         }
     }, 300);
@@ -730,18 +862,15 @@ document.getElementById('btn-submit-new-civ').addEventListener('click', async ()
         toast('Please select a university source card first', 'error');
         return;
     }
-
     const dto = {
-        title: selectedCivMetadata.title,
+        title:       selectedCivMetadata.title,
         description: selectedCivMetadata.description,
-        startYear: selectedCivMetadata.startYear,
-        endYear: selectedCivMetadata.endYear
+        startYear:   selectedCivMetadata.startYear,
+        endYear:     selectedCivMetadata.endYear,
     };
-
-    const btn = document.getElementById('btn-submit-new-civ');
-    btn.disabled = true;
+    const btn       = document.getElementById('btn-submit-new-civ');
+    btn.disabled    = true;
     btn.textContent = 'Generating Matrix…';
-
     try {
         await createCentralCivilization(dto);
         toast('Standardized Central Civilization Generated', 'success');
@@ -751,38 +880,12 @@ document.getElementById('btn-submit-new-civ').addEventListener('click', async ()
     } catch (e) {
         toast(e.message, 'error');
     } finally {
-        btn.disabled = false;
+        btn.disabled    = false;
         btn.textContent = 'Create';
     }
 });
 
-// ── Structural Chronological Range Phase Definitions ──────────────────────
-document.getElementById('btn-submit-volume').addEventListener('click', async () => {
-    const dto = {
-        title:     document.getElementById('vol-title').value.trim(),
-        startYear: numOrNull('vol-start'),
-        endYear:   numOrNull('vol-end'),
-        position:  parseInt(document.getElementById('vol-position').value) || 1,
-    };
-    if (!dto.title) { toast('Phase boundary naming identification missing', 'error'); return; }
-    const btn = document.getElementById('btn-submit-volume');
-    btn.disabled = true; btn.textContent = 'Structuring…';
-    try {
-        await addVolume(currentCivId, dto);
-        toast('Chronological Framework Partition Mapped', 'success');
-        closeModal('modal-add-volume');
-        openCentralDetail(currentCivId);
-        ['vol-title','vol-start','vol-end','vol-position'].forEach(id => {
-            document.getElementById(id).value = '';
-        });
-    } catch (e) {
-        toast(e.message, 'error');
-    } finally {
-        btn.disabled = false; btn.textContent = 'Add Volume';
-    }
-});
-
-// ── Multi-Institutional Structural Divergence Asserter ─────────────────────
+// ── Flag Divergence ───────────────────────────────────────────────────────
 document.getElementById('btn-submit-divergence').addEventListener('click', async () => {
     const dto = {
         primaryEntryId:     document.getElementById('div-primary-id').value.trim(),
@@ -790,24 +893,27 @@ document.getElementById('btn-submit-divergence').addEventListener('click', async
         divergenceNote:     document.getElementById('div-note').value.trim(),
     };
     if (!dto.primaryEntryId || !dto.conflictingEntryId || !dto.divergenceNote) {
-        toast('Disagreement assertion argument parameter required', 'error'); return;
+        toast('All divergence fields are required', 'error');
+        return;
     }
-    const btn = document.getElementById('btn-submit-divergence');
-    btn.disabled = true; btn.textContent = 'Registering Assertion…';
+    const btn       = document.getElementById('btn-submit-divergence');
+    btn.disabled    = true;
+    btn.textContent = 'Registering Assertion…';
     try {
         await flagDivergence(currentCivId, dto);
-        toast('Divergence constraint mapping successfully injected', 'success');
+        toast('Divergence flagged successfully', 'success');
         closeModal('modal-flag-divergence');
         openCentralDetail(currentCivId);
-        ['div-primary-id','div-conflict-id','div-note'].forEach(id => {
+        ['div-primary-id', 'div-conflict-id', 'div-note'].forEach(id => {
             document.getElementById(id).value = '';
         });
     } catch (e) {
         toast(e.message, 'error');
     } finally {
-        btn.disabled = false; btn.textContent = 'Flag Divergence';
+        btn.disabled    = false;
+        btn.textContent = 'Flag Divergence';
     }
 });
 
-// ── System Boot Sequence ──────────────────────────────────────────────────
+// ── System Boot ───────────────────────────────────────────────────────────
 loadCivilizations();

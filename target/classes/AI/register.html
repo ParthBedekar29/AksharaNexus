@@ -15,7 +15,7 @@
     </div>
 </nav>
 <div class="auth-body">
-    <div class="auth-card">
+    <div class="auth-card" id="form-card">
         <h1 class="auth-title">Create account</h1>
         <p class="auth-sub">Free to use. No subscription.</p>
         <div id="auth-error" class="auth-error"></div>
@@ -44,6 +44,15 @@
             <button type="submit" id="submit-btn" class="btn-submit" data-label="Create account">Create account</button>
         </form>
         <div class="auth-switch">Already have an account? <a href="login.html">Sign in</a></div>
+    </div>
+
+    <!-- Shown after successful registration -->
+    <div class="auth-card auth-success-card" id="success-card" style="display:none">
+        <div class="auth-success-icon">✉</div>
+        <h1 class="auth-title">Check your inbox</h1>
+        <p class="auth-sub" id="success-email-msg">We sent a verification link to your email. Click it to activate your account.</p>
+        <p class="auth-success-note">The link expires in 24 hours. Check your spam folder if you don't see it.</p>
+        <a href="login.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Back to sign in</a>
     </div>
 </div>
 <script src="js/api.js"></script>

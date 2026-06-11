@@ -26,7 +26,7 @@
         <div class="panel-header">
             <div class="panel-title">Version history</div>
             <div class="panel-sub" id="version-count">Loading&hellip;</div>
-            <div id="submit-review-wrap" style="display:none;padding:12px 16px 0">
+            <div id="submit-review-wrap" style="display:none;">
                 <button class="btn btn-teal w-full btn-sm" id="submit-all-btn" onclick="submitAllForReview()">
                     ↑ Submit drafts for review
                 </button>
@@ -340,9 +340,9 @@
         currentVersionHash = version.hash;
         document.getElementById('tree-hash').textContent = '';
 
-        let tree;
+        let parsed;
         try {
-            tree = typeof version.serializedTree === 'string'
+            parsed = typeof version.serializedTree === 'string'
                 ? JSON.parse(version.serializedTree)
                 : version.serializedTree;
         } catch {
@@ -351,31 +351,47 @@
             return;
         }
 
-        if (!tree) {
+        if (!parsed) {
             document.getElementById('tree-body').innerHTML =
                 `<div class="empty-state"><p>Empty tree</p></div>`;
             return;
         }
 
-        // Load marks first so tree render can use them
+        // Handle both wrapped { title, description, startYear, endYear, tree: {...} }
+        // and raw { nodeId, data, children } formats
+        const tree = (parsed.tree && parsed.tree.nodeId) ? parsed.tree : parsed;
+
+        if (!tree || !tree.nodeId) {
+            document.getElementById('tree-body').innerHTML =
+                `<div class="empty-state"><p>Invalid tree structure</p></div>`;
+            return;
+        }
+
+        // Set rootNodeId immediately — before any awaits
+        rootNodeId = tree.nodeId;
+
+        // Load marks (non-blocking — tree still renders if this fails)
         let marksMap = {};
         try {
             const marks = await CivAPI.getEntryMarks(civId);
             marks.forEach(m => { marksMap[m.nodeId] = m; });
-        } catch { /* marks not critical — render tree anyway */ }
-
-        rootNodeId = tree.nodeId;
-        document.getElementById('tree-body').innerHTML = renderTreeNode(tree, true, null, marksMap);
+        } catch { /* marks not critical */ }
 
         const canEdit = role === 'ADMIN' || role === 'EDITOR';
+
+        document.getElementById('tree-body').innerHTML = renderTreeNode(tree, true, null, marksMap);
+
         document.getElementById('tree-edit-actions').innerHTML = canEdit
             ? `<button class="btn btn-secondary btn-sm" onclick="openAddVolume('${rootNodeId}')">+ Volume</button>`
             : '';
 
-        // Show marks panel if there are any marks
         if (Object.keys(marksMap).length > 0) {
             renderMarksFeed(Object.values(marksMap));
+            document.getElementById('col-marks').style.display = '';
             document.getElementById('col-marks').classList.add('col-marks-visible');
+        } else {
+            document.getElementById('col-marks').classList.remove('col-marks-visible');
+            document.getElementById('col-marks').style.display = 'none';
         }
     }
 

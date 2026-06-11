@@ -96,8 +96,17 @@
 
         try {
             await AuthAPI.register(payload);
-            showToast('Account created', 'success');
-            setTimeout(() => window.location.href = 'dashboard.html', 600);
+// with this:
+            document.getElementById('reg-form').innerHTML = `
+            <div style="text-align:center; padding: 24px 0;">
+                <div style="font-size: 2.5rem; margin-bottom: 16px;">📬</div>
+                <h2 style="margin-bottom: 8px;">Check your inbox</h2>
+                <p style="color:#555; margin-bottom: 24px;">
+                    We sent a verification link to <strong>${payload.email}</strong>.<br/>
+                    Click it to activate your account. The link expires in 24 hours.
+                </p>
+                <a href="login.html" class="btn-submit" style="display:inline-block; text-decoration:none;">Back to Sign In</a>
+            </div>`;
         } catch (err) {
             showToast(err.message || 'Registration failed', 'error');
             btn.disabled = false;

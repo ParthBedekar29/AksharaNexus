@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>AksharaNexus — Verify Email</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="login-shell">
+    <div class="login-card" style="text-align:center;padding:40px 32px">
+        <div class="login-logo">Akshara<em style="font-style:italic;color:var(--teal)">Nexus</em></div>
+        <div class="login-context">Reviewer Portal</div>
+
+        <div id="loading-state" style="padding:24px 0">
+            <p class="login-sub">Verifying your email…</p>
+        </div>
+
+        <div id="success-state" style="display:none;padding:12px 0">
+            <div style="font-size:2rem;margin-bottom:14px;color:var(--teal)">✦</div>
+            <h2 class="login-title" style="margin-bottom:8px">Email verified</h2>
+            <p class="login-sub">Your account is now active. You can sign in.</p>
+            <a href="login.html" class="btn-login" style="display:inline-block;margin-top:8px;text-decoration:none;text-align:center;background:var(--teal)">Sign in</a>
+        </div>
+
+        <div id="error-state" style="display:none;padding:12px 0">
+            <div style="font-size:2rem;margin-bottom:14px;">⚠️</div>
+            <h2 class="login-title" style="margin-bottom:8px">Verification failed</h2>
+            <p class="login-sub" id="error-msg">This link is invalid or has expired.</p>
+            <a href="register.html" class="btn-login" style="display:inline-block;margin-top:8px;text-decoration:none;text-align:center;background:var(--teal)">Register again</a>
+        </div>
+    </div>
+</div>
+<script type="module">
+    import { verifyEmail } from './api.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get('token');
+
+    const loading = document.getElementById('loading-state');
+    const success = document.getElementById('success-state');
+    const error   = document.getElementById('error-state');
+    const errorMsg = document.getElementById('error-msg');
+
+    if (!token) {
+        loading.style.display = 'none';
+        errorMsg.textContent = 'No verification token found in this link.';
+        error.style.display = 'block';
+    } else {
+        verifyEmail(token)
+            .then(() => {
+                loading.style.display = 'none';
+                success.style.display = 'block';
+            })
+            .catch(e => {
+                loading.style.display = 'none';
+                errorMsg.textContent = e.message || 'This link is invalid or has expired.';
+                error.style.display = 'block';
+            });
+    }
+</script>
+</body>
+</html>

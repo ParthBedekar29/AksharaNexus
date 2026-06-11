@@ -1059,8 +1059,12 @@
     async function loadEntry() {
         try {
             const latest = await CivAPI.getLatest(civId);
-            const tree   = typeof latest.serializedTree === 'string'
-                ? JSON.parse(latest.serializedTree) : latest.serializedTree;
+            let parsed = typeof latest.serializedTree === 'string'
+                ? JSON.parse(latest.serializedTree)
+                : latest.serializedTree;
+
+            // Handle wrapped format { title, description, startYear, endYear, tree: {...} }
+            const tree = (parsed?.tree?.nodeId) ? parsed.tree : parsed;
 
             currentNode = findNode(tree, nodeId);
             if (!currentNode) { showToast('Entry not found', 'error'); return; }

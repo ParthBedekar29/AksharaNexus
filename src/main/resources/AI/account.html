@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account — AksharaNexus</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/account.css">
+</head>
+<body data-page="account">
+<nav class="auth-nav">
+    <div class="container">
+        <a href="chat.html" class="auth-nav-brand">AksharaNexus</a>
+        <a href="chat.html" class="auth-nav-link">← Back to Oracle</a>
+    </div>
+</nav>
+
+<div class="account-body">
+
+    <!-- Profile card -->
+    <div class="account-card" id="profile-card">
+        <div class="account-avatar" id="avatar-initials"></div>
+        <div class="account-info">
+            <div class="account-name" id="profile-name">—</div>
+            <div class="account-email" id="profile-email">—</div>
+            <div class="account-since">Member since <span id="profile-since">—</span></div>
+        </div>
+    </div>
+
+    <!-- Change password -->
+    <div class="account-section">
+        <h2 class="account-section-title">Change password</h2>
+        <div id="pw-error"      class="auth-error"></div>
+        <div id="pw-success"    class="auth-success"></div>
+        <div class="form-group">
+            <label class="form-label">Current password</label>
+            <div class="password-wrap">
+                <input class="form-input" type="password" id="current-pw" placeholder="••••••••" autocomplete="current-password">
+                <button type="button" class="toggle-pw" aria-label="Toggle">👁</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">New password</label>
+            <div class="password-wrap">
+                <input class="form-input" type="password" id="new-pw" placeholder="6+ characters" autocomplete="new-password">
+                <button type="button" class="toggle-pw" aria-label="Toggle">👁</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Confirm new password</label>
+            <div class="password-wrap">
+                <input class="form-input" type="password" id="confirm-pw" placeholder="••••••••" autocomplete="new-password">
+                <button type="button" class="toggle-pw" aria-label="Toggle">👁</button>
+            </div>
+        </div>
+        <button class="btn-submit" id="change-pw-btn" data-label="Update password">Update password</button>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="account-section account-danger-zone">
+        <h2 class="account-section-title danger-title">Danger zone</h2>
+        <p class="account-danger-desc">Permanently delete your account and all associated data. This cannot be undone.</p>
+        <button class="btn-danger" id="open-delete-modal">Delete account</button>
+    </div>
+
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="delete-modal" style="display:none">
+    <div class="modal-card">
+        <div class="modal-icon">⚠</div>
+        <h2 class="modal-title">Delete your account?</h2>
+        <p class="modal-desc">This will permanently delete your account and all your data. Enter your password to confirm.</p>
+        <div id="del-error" class="auth-error"></div>
+        <div class="form-group">
+            <div class="password-wrap">
+                <input class="form-input" type="password" id="delete-pw" placeholder="Your password" autocomplete="current-password">
+                <button type="button" class="toggle-pw" aria-label="Toggle">👁</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost-modal" id="cancel-delete">Cancel</button>
+            <button class="btn-danger" id="confirm-delete" data-label="Delete account">Delete account</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/account.js"></script>
+</body>
+</html>

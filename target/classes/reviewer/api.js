@@ -1,5 +1,5 @@
 // ── AksharaNexus Reviewer API ─────────────────────────────────────────────
-const BASE = 'http://localhost:8080';
+const BASE = 'https://aksharanexus-production.up.railway.app';
 const TOKEN_KEY = 'reviewer_token';
 
 // ── Token helpers ─────────────────────────────────────────────────────────
@@ -64,7 +64,17 @@ export function logout() {
     clearToken();
     window.location.href = 'login.html';
 }
+export async function verifyEmail(token) {
+    return req('GET', `/reviewer/auth/verify?token=${encodeURIComponent(token)}`);
+}
 
+export async function forgotPassword(email) {
+    return req('POST', '/reviewer/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token, newPassword) {
+    return req('POST', '/reviewer/auth/reset-password', { token, newPassword });
+}
 // ── Civilization browse (latest version per civ, all universities) ────────
 // Replaces old getPendingVersions / getReviewedVersions
 export const getAllLatestVersions = () => req('GET', '/reviewer/civilizations/latest');
@@ -92,3 +102,7 @@ export const deleteVolume = (cId, vId)       => req('DELETE', `/reviewer/central
 export const addEntriesBatch = (cId, vId, dto) => req('POST', `/reviewer/central/${cId}/volume/${vId}/entries/batch`, dto);
 export const deleteMark = (markId) => req('DELETE', `/reviewer/entry/mark/${markId}`);
 export const getVersionMarks = (versionId) => req('GET', `/reviewer/version/${versionId}/marks`);
+export const markVolume       = (dto)    => req('POST',   '/reviewer/volume/mark', dto);
+export const getMyVolumeMarks = ()       => req('GET',    '/reviewer/volume/marks');
+export const deleteVolumeMark = (markId) => req('DELETE', `/reviewer/volume/mark/${markId}`);
+export const addVolumeFromMark = (cId, dto) => req('POST', `/reviewer/central/${cId}/volume/from-mark`, dto);

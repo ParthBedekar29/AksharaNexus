@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/auth.css" />
 </head>
 <body>
-
 <nav class="nav">
     <a href="index.html" class="nav-logo">AksharaNexus</a>
     <div class="nav-right">
@@ -15,16 +14,12 @@
         <a href="register-admin.html" class="nav-cta">Register Institution</a>
     </div>
 </nav>
-
 <div class="auth-wrap">
     <div class="auth-box">
-
         <a href="index.html" class="auth-back">← Back to home</a>
-
         <div class="auth-kicker">Sign in</div>
         <h1>Welcome back</h1>
         <p class="auth-sub">Sign in with your institutional credentials to continue.</p>
-
         <form id="login-form">
             <div class="form-group">
                 <label for="email">Institutional Email</label>
@@ -34,20 +29,18 @@
                 <label for="password">Password</label>
                 <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
             </div>
-
+            <div style="text-align:right; margin-top: -8px; margin-bottom: 16px;">
+                <a href="forgot-password.html" style="font-size: 0.85rem; color: #666;">Forgot password?</a>
+            </div>
             <button type="submit" class="btn-submit" id="submit-btn">Sign In</button>
         </form>
-
         <div class="auth-footer">
             <span class="auth-footer-line">Don't have an account? <a href="register.html">Join as a researcher</a></span>
             <span class="auth-footer-line">Registering an institution? <a href="register-admin.html">Institution registration →</a></span>
         </div>
-
     </div>
 </div>
-
 <div class="toast-container" id="toast-container"></div>
-
 <script src="js/api.js"></script>
 <script>
     if (typeof Auth !== 'undefined' && Auth.getToken()) window.location.href = 'dashboard.html';
@@ -57,10 +50,8 @@
         const btn = document.getElementById('submit-btn');
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
-
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span>Signing in…';
-
         try {
             await AuthAPI.login(email, password);
             showToast('Signed in successfully', 'success');
@@ -71,19 +62,6 @@
             btn.innerHTML = 'Sign In';
         }
     });
-
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = '0.2s';
-            setTimeout(() => toast.remove(), 200);
-        }, 3500);
-    }
 </script>
 </body>
 </html>

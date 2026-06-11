@@ -78,7 +78,47 @@ const api = {
         if (!res.ok) throw new Error('Password reset failed. Please try again.');
         return true;
     },
+    async getProfile() {
+        const res = await fetch(`${API_BASE}/ai/account/me`, {
+            headers: { 'Authorization': `Bearer ${this.getToken()}` }
+        });
+        if (res.status === 401 || res.status === 403) {
+            this.clearSession(); window.location.href = 'login.html';
+            throw new Error('Session expired');
+        }
+        if (!res.ok) throw new Error('Failed to load profile.');
+        return res.json();
+    },
 
+    async changePassword(currentPassword, newPassword) {
+        const res = await fetch(`${API_BASE}/ai/account/change-password`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.getToken()}` },
+            body:    JSON.stringify({ currentPassword, newPassword })
+        });
+        if (res.status === 400) { const msg = await res.text(); throw new Error(msg); }
+        if (res.status === 401 || res.status === 403) {
+            this.clearSession(); window.location.href = 'login.html';
+            throw new Error('Session expired');
+        }
+        if (!res.ok) throw new Error('Failed to update password.');
+        return true;
+    },
+
+    async deleteAccount(password) {
+        const res = await fetch(`${API_BASE}/ai/account/delete`, {
+            method:  'DELETE',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.getToken()}` },
+            body:    JSON.stringify({ password })
+        });
+        if (res.status === 400) { const msg = await res.text(); throw new Error(msg); }
+        if (res.status === 401 || res.status === 403) {
+            this.clearSession(); window.location.href = 'login.html';
+            throw new Error('Session expired');
+        }
+        if (!res.ok) throw new Error('Failed to delete account.');
+        return true;
+    },
     // ── Oracle ────────────────────────────────────────────────────────────────
 
     async query(question) {

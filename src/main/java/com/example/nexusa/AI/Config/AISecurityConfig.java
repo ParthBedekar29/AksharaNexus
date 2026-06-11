@@ -27,12 +27,13 @@ public class AISecurityConfig {
     @Order(2)
     public SecurityFilterChain aiFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/oracle/**", "/ai/auth/**")
+                .securityMatcher("/oracle/**", "/ai/auth/**", "/ai/account/**")  // ← added
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(aiCorsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ai/auth/**").permitAll()
+                        .requestMatchers("/ai/account/**").hasRole("VIEWER")  // ← added
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
                         .anyRequest().authenticated()
                 )
@@ -42,29 +43,20 @@ public class AISecurityConfig {
 
     @Bean
     public CorsConfigurationSource aiCorsConfigurationSource() {
-
         CorsConfiguration config = new CorsConfiguration();
-
         config.setAllowedOrigins(List.of(
-                "https://aksharaoracle.netlify.app","http://localhost:63342"
+                "https://aksharaoracle.netlify.app", "http://localhost:63342"
         ));
-
         config.setAllowedMethods(List.of(
-                "GET",
-                "POST",
-                "OPTIONS"
+                "GET", "POST", "DELETE", "OPTIONS"  // ← added DELETE
         ));
-
         config.setAllowedHeaders(List.of("*"));
-
         config.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/oracle/**", config);
-        source.registerCorsConfiguration("/ai/auth/**", config);
-
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/oracle/**",      config);
+        source.registerCorsConfiguration("/ai/auth/**",     config);
+        source.registerCorsConfiguration("/ai/account/**",  config);  // ← added
         return source;
     }
 }

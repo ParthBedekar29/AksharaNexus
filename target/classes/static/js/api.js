@@ -1,5 +1,5 @@
 // ── NexusA API Layer ──────────────────────────────────────────────────────────
-const API_BASE = 'http://localhost:8080';
+const API_BASE = 'https://aksharanexus-production.up.railway.app';
 const TOKEN_KEY = 'nexusa_token';
 
 // ── Token Helpers ─────────────────────────────────────────────────────────────
@@ -41,6 +41,7 @@ const SAVE_QUEUE_KEY    = 'nexusa_save_queue';
 
 // ── Core Fetch (with timeout + retry) ─────────────────────────────────────────
 async function apiFetch(path, options = {}, attempt = 1) {
+    console.log('[apiFetch]', options.method || 'GET', path);
     const token = Auth.getToken();
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -83,8 +84,9 @@ async function apiFetch(path, options = {}, attempt = 1) {
     if (!res.ok) {
         // 401 → token expired
         if (res.status === 401) {
+            console.error('[apiFetch] 401 on', path, 'body:', text);
             Auth.removeToken();
-            window.location.href = 'login.html';
+            //window.location.href = 'login.html';
             return;
         }
         const msg = typeof data === 'string'
@@ -174,14 +176,36 @@ window.addEventListener('offline', () => showToast('You\'re offline — saves wi
 // ── Auth API ──────────────────────────────────────────────────────────────────
 const AuthAPI = {
     async login(email, password) {
-        const token = await apiFetch('/auth/login', { method: 'POST', body: { email, password } });
+        const raw = await apiFetch('/auth/login', { method: 'POST', body: { email, password } });
+
+
+        const token = typeof raw === 'string'
+            ? raw.replace(/^"|"$/g, '').trim()
+            : null;
+
+        if (!token || token.split('.').length !== 3) {
+            throw new Error('Invalid token received from server');
+        }
+
         Auth.setToken(token);
         return token;
     },
     async register(payload) {
-        const token = await apiFetch('/auth/register', { method: 'POST', body: payload });
-        Auth.setToken(token);
-        return token;
+        await apiFetch('/auth/register', { method: 'POST', body: payload });
+
+    },
+    async forgotPassword(email, adminCode = null) {
+        return apiFetch('/auth/forgot-password', {
+            method: 'POST',
+            body: { email, adminCode }
+        });
+    },
+
+    async resetPassword(token, newPassword) {
+        return apiFetch('/auth/reset-password', {
+            method: 'POST',
+            body: { token, newPassword }
+        });
     },
     async getUniversities() { return apiFetch('/auth/universities'); }
 };

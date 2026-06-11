@@ -159,30 +159,53 @@
 
 <!-- ── Add Volume Modal ──────────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-add-volume">
-    <div class="modal">
+    <div class="modal modal-wide">
         <div class="modal-header">
             <span class="modal-title">Add Volume</span>
             <button class="modal-close" data-close="modal-add-volume">✕</button>
         </div>
-        <div class="modal-body">
-            <p class="modal-hint">Volumes organise entries by period or theme within a civilization.</p>
-            <div class="form-group">
-                <label>Volume Title</label>
-                <input type="text" id="vol-title" placeholder="e.g. Urban Phase">
+        <div class="modal-body" style="gap:0;padding:0">
+            <!-- Tab bar -->
+            <div style="display:flex;border-bottom:1px solid var(--rule)">
+                <button class="vol-tab active" data-tab="marks"
+                        style="flex:1;padding:11px 16px;font-size:0.82rem;font-weight:500;border:none;background:none;cursor:pointer;color:var(--teal);border-bottom:2px solid var(--teal)">
+                    From My Marks
+                </button>
+                <button class="vol-tab" data-tab="manual"
+                        style="flex:1;padding:11px 16px;font-size:0.82rem;font-weight:500;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent">
+                    Manual Entry
+                </button>
             </div>
-            <div class="form-row">
+
+            <!-- Marks tab -->
+            <div class="vol-tab-panel" id="vol-panel-marks" style="padding:16px 20px;display:block">
+                <div id="vol-marks-list" style="max-height:300px;overflow-y:auto"></div>
+                <div class="form-group" style="margin-top:12px">
+                    <label>Position <span class="field-hint">(display order)</span></label>
+                    <input type="number" id="vol-mark-position" placeholder="1" min="1" style="max-width:120px">
+                </div>
+            </div>
+
+            <!-- Manual tab -->
+            <div class="vol-tab-panel" id="vol-panel-manual" style="padding:16px 20px;display:none">
                 <div class="form-group">
-                    <label>Start Year <span class="field-hint">(BCE = negative)</span></label>
-                    <input type="number" id="vol-start" placeholder="-2600">
+                    <label>Volume Title</label>
+                    <input type="text" id="vol-title" placeholder="e.g. Urban Phase">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Year <span class="field-hint">(BCE = negative)</span></label>
+                        <input type="number" id="vol-start" placeholder="-2600">
+                    </div>
+                    <div class="form-group">
+                        <label>End Year</label>
+                        <input type="number" id="vol-end" placeholder="-2000">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>End Year</label>
-                    <input type="number" id="vol-end" placeholder="-2000">
+                    <label>Position <span class="field-hint">(display order)</span></label>
+                    <input type="number" id="vol-position" placeholder="1" min="1">
                 </div>
-            </div>
-            <div class="form-group">
-                <label>Position <span class="field-hint">(display order, e.g. 1, 2, 3…)</span></label>
-                <input type="number" id="vol-position" placeholder="1" min="1">
             </div>
         </div>
         <div class="modal-footer">

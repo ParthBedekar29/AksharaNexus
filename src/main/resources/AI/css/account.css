@@ -1,0 +1,202 @@
+/* account.css — uses only base.css variables */
+
+.account-body {
+    max-width: 520px;
+    margin: 48px auto;
+    padding: 0 28px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* ── Profile card ──────────────────────────────────────────────────────────── */
+.account-card {
+    background: var(--dark-surface-2);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.account-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    color: var(--cream);
+    font-size: 1.1rem;
+    font-weight: 600;
+    font-family: var(--font-serif);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border: 1px solid var(--accent);
+}
+
+.account-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--white);
+}
+
+.account-email {
+    font-size: 0.85rem;
+    color: var(--gray-400);
+    margin-top: 3px;
+    font-family: var(--font-mono);
+}
+
+.account-since {
+    font-size: 0.78rem;
+    color: var(--gray-600);
+    margin-top: 5px;
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────────── */
+.account-section {
+    background: var(--dark-surface-2);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.account-section-title {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    margin: 0;
+}
+
+/* ── Success message ───────────────────────────────────────────────────────── */
+.auth-success {
+    background: rgba(90, 170, 114, 0.08);
+    border: 1px solid rgba(90, 170, 114, 0.25);
+    color: #5aaa72;
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    display: none;
+}
+
+.auth-success.visible { display: block; }
+
+/* ── Danger zone ───────────────────────────────────────────────────────────── */
+.account-danger-zone {
+    border-color: rgba(200, 60, 60, 0.2);
+}
+
+.danger-title {
+    color: #c85a5a;
+}
+
+.account-danger-desc {
+    color: var(--gray-500);
+    font-size: 0.85rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.btn-danger {
+    padding: 9px 18px;
+    background: rgba(200, 60, 60, 0.12);
+    color: #e07070;
+    border: 1px solid rgba(200, 60, 60, 0.3);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-danger:hover {
+    background: rgba(200, 60, 60, 0.22);
+    border-color: rgba(200, 60, 60, 0.5);
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 11, 11, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+}
+
+.modal-card {
+    background: var(--dark-surface-2);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-icon {
+    font-size: 1.8rem;
+    text-align: center;
+}
+
+.modal-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+    margin: 0;
+    color: var(--white);
+}
+
+.modal-desc {
+    font-size: 0.85rem;
+    color: var(--gray-400);
+    text-align: center;
+    margin: 0;
+    line-height: 1.55;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.btn-ghost-modal {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-sm);
+    color: var(--gray-300);
+    font-size: 0.88rem;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-ghost-modal:hover {
+    border-color: var(--dark-border-hover);
+    color: var(--white);
+}
+
+.modal-actions .btn-danger {
+    flex: 1;
+    align-self: unset;
+    text-align: center;
+}

@@ -529,7 +529,13 @@ body {
     cursor: not-allowed;
     transform: none;
 }
-
+.typing-status {
+    font-size: 0.75rem;
+    color: var(--ink);
+    opacity: 0.6;
+    margin-left: 0.5rem;
+    font-family: 'IBM Plex Mono', monospace;
+}
 .chat-send-btn svg {
     width: 15px; height: 15px;
     stroke: var(--send-icon);

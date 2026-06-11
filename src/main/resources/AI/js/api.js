@@ -145,5 +145,54 @@ const api = {
         }
         if (!res.ok) throw new Error('Query failed');
         return res.json();
-    }
+    },
+    // ── Chat history ──────────────────────────────────────────────────────────────
+    async getSessions() {
+        const res = await fetch(`${API_BASE}/ai/chat/sessions`, {
+            headers: { 'Authorization': `Bearer ${this.getToken()}` }
+        });
+        if (res.status === 401 || res.status === 403) {
+            this.clearSession(); window.location.href = 'login.html';
+            throw new Error('Session expired');
+        }
+        if (!res.ok) throw new Error('Failed to load sessions.');
+        return res.json();
+    },
+
+    async createSession(firstMessage) {
+        const res = await fetch(`${API_BASE}/ai/chat/sessions`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.getToken()}` },
+            body:    JSON.stringify({ firstMessage })
+        });
+        if (!res.ok) throw new Error('Failed to create session.');
+        return res.json();
+    },
+
+    async getMessages(sessionId) {
+        const res = await fetch(`${API_BASE}/ai/chat/sessions/${sessionId}/messages`, {
+            headers: { 'Authorization': `Bearer ${this.getToken()}` }
+        });
+        if (!res.ok) throw new Error('Failed to load messages.');
+        return res.json();
+    },
+
+    async saveMessages(sessionId, userMessage, oracleResponse) {
+        const res = await fetch(`${API_BASE}/ai/chat/sessions/${sessionId}/messages`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.getToken()}` },
+            body:    JSON.stringify({ userMessage, oracleResponse })
+        });
+        if (!res.ok) throw new Error('Failed to save messages.');
+        return true;
+    },
+
+    async deleteSession(sessionId) {
+        const res = await fetch(`${API_BASE}/ai/chat/sessions/${sessionId}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${this.getToken()}` }
+        });
+        if (!res.ok) throw new Error('Failed to delete session.');
+        return true;
+    },
 };

@@ -243,6 +243,25 @@ body { background: var(--black); color: var(--black); min-height: 100vh; }
     vertical-align: middle;
     margin-right: 6px;
 }
+.resend-btn {
+    display: none;
+    width: 100%;
+    padding: 9px;
+    margin-bottom: 8px;
+    background: transparent;
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    text-align: center;
+}
+.resend-btn:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Verification loading spinner (full card) */

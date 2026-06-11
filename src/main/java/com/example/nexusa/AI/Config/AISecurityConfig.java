@@ -50,8 +50,8 @@ public class AISecurityConfig {
         config.setAllowedMethods(List.of(
                 "GET", "POST", "DELETE", "OPTIONS"  // ← added DELETE
         ));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));  // explicit, not "*"
+        config.setAllowCredentials(false);  // resend has no token, credentials not needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/oracle/**",      config);

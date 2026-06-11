@@ -104,7 +104,15 @@ const api = {
         if (!res.ok) throw new Error('Failed to update password.');
         return true;
     },
-
+    async resendVerification(email) {
+        const res = await fetch(`${API_BASE}/ai/auth/resend-verification`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email })
+        });
+        if (!res.ok) throw new Error('Failed to resend. Please try again.');
+        return true;
+    },
     async deleteAccount(password) {
         const res = await fetch(`${API_BASE}/ai/account/delete`, {
             method:  'DELETE',

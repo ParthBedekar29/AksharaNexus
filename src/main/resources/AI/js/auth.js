@@ -50,16 +50,17 @@ function show(id)   { const el = document.getElementById(id); if (el) el.style.d
 function hide(id)   { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 
 // ── Login ─────────────────────────────────────────────────────────────────────
-
 function initLogin() {
     if (api.isLoggedIn()) { window.location.href = 'chat.html'; return; }
 
     const form      = document.getElementById('auth-form');
     const submitBtn = document.getElementById('submit-btn');
+    const resendBtn = document.getElementById('resend-btn');
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideError();
+        resendBtn.style.display = 'none';
         setLoading(submitBtn, true);
 
         const email    = document.getElementById('email').value.trim();
@@ -71,7 +72,32 @@ function initLogin() {
             window.location.href = 'chat.html';
         } catch (err) {
             showError(err.message);
+            // Show resend button only for unverified accounts
+            if (err.message.includes('verify your email')) {
+                resendBtn.dataset.email = email;
+                resendBtn.style.display = 'inline-block';
+            }
             setLoading(submitBtn, false);
+        }
+    });
+
+    resendBtn.addEventListener('click', async () => {
+        const email = resendBtn.dataset.email;
+        resendBtn.disabled    = true;
+        resendBtn.textContent = 'Sending…';
+        try {
+            await api.resendVerification(email);
+            hideError();
+            resendBtn.style.display = 'none';
+            // Reuse the success-card pattern
+            document.getElementById('success-email-msg').innerHTML =
+                `A new verification link has been sent to <strong>${email}</strong>.`;
+            hide('form-card');
+            show('success-card');
+        } catch (err) {
+            showError(err.message);
+            resendBtn.disabled    = false;
+            resendBtn.textContent = 'Resend verification email';
         }
     });
 }

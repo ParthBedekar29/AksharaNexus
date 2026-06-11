@@ -154,7 +154,31 @@ public class AIAuthController {
 
         return ResponseEntity.ok("Password reset successfully. You can now log in.");
     }
+    // ── Resend verification ───────────────────────────────────────────────────
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@RequestBody ForgotPasswordRequest req) {
+        Optional<PublicUser> opt = publicUserRepository.findByEmail(req.getEmail());
+        if (opt.isEmpty() || opt.get().isEmailVerified()) {
+            return ResponseEntity.ok("If that email is pending verification, a new link has been sent.");
+        }
 
+        PublicUser user = opt.get();
+
+        // Invalidate old tokens
+        verificationTokenRepository.findAllByPublicUser(user)
+                .forEach(t -> { t.setUsed(true); verificationTokenRepository.save(t); });
+
+        PublicUserEmailVerificationToken token = new PublicUserEmailVerificationToken();
+        token.setToken(UUID.randomUUID());
+        token.setPublicUser(user);
+        token.setExpiresAt(LocalDateTime.now().plusHours(24));
+        verificationTokenRepository.save(token);
+
+        emailService.sendPublicUserVerificationEmail(
+                user.getEmail(), user.getFirstName(), token.getToken().toString());
+
+        return ResponseEntity.ok("Verification email resent.");
+    }
     // ── DTOs ──────────────────────────────────────────────────────────────────
     @Data public static class LoginRequest {
         private String email;

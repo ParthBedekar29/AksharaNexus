@@ -28,12 +28,16 @@
         <a href="login.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Sign in</a>
     </div>
 
-    <!-- Error -->
     <div class="auth-card auth-success-card" id="error-card" style="display:none">
         <div class="auth-success-icon" style="color:#e05a5a">✕</div>
         <h1 class="auth-title">Verification failed</h1>
         <p class="auth-sub" id="error-msg">This link is invalid or has already been used.</p>
-        <a href="register.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Register again</a>
+        <a href="login.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;margin-top:8px">
+            Go to sign in
+        </a>
+        <p style="text-align:center;margin-top:12px;font-size:0.85rem;color:var(--gray-500)">
+            Link expired? Sign in with your email and we'll offer to resend it.
+        </p>
     </div>
 </div>
 <script src="js/api.js"></script>

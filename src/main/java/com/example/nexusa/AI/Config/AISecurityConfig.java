@@ -27,7 +27,7 @@ public class AISecurityConfig {
     @Order(2)
     public SecurityFilterChain aiFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/oracle/**", "/ai/auth/**", "/ai/account/**")  // ← added
+                .securityMatcher("/oracle/**", "/ai/auth/**", "/ai/account/**", "/ai/chat/**") // ← added
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(aiCorsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -35,6 +35,7 @@ public class AISecurityConfig {
                         .requestMatchers("/ai/auth/**").permitAll()
                         .requestMatchers("/ai/account/**").hasRole("VIEWER")  // ← added
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
+                        .requestMatchers("/ai/chat/**").hasRole("VIEWER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(aiJwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -56,7 +57,8 @@ public class AISecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/oracle/**",      config);
         source.registerCorsConfiguration("/ai/auth/**",     config);
-        source.registerCorsConfiguration("/ai/account/**",  config);  // ← added
+        source.registerCorsConfiguration("/ai/account/**",  config);
+        source.registerCorsConfiguration("/ai/chat/**", config);// ← added
         return source;
     }
 }

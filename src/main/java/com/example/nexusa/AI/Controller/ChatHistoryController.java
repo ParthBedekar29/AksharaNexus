@@ -119,14 +119,21 @@ public class ChatHistoryController {
     public ResponseEntity<?> deleteSession(@PathVariable UUID sessionId,
                                            Principal principal) {
         Optional<ChatSession> opt = sessionRepository.findById(sessionId);
-        if (opt.isEmpty()) return ResponseEntity.status(404).body("Session not found");
-        if (!opt.get().getPublicUser().getUserId().equals(getUser(principal).getUserId())) {
+        if (opt.isEmpty()) return ResponseEntity.ok("Session deleted.");  // idempotent
+
+        ChatSession session = opt.get();
+        if (!session.getPublicUser().getUserId().equals(getUser(principal).getUserId())) {
             return ResponseEntity.status(403).body("Forbidden");
         }
 
-        messageRepository.deleteAllBySession(opt.get());
-        sessionRepository.delete(opt.get());
-        return ResponseEntity.ok("Session deleted.");
+        try {
+            messageRepository.deleteAllBySessionId(sessionId);  // JPQL by ID, not entity
+            sessionRepository.deleteById(sessionId);            // same
+            return ResponseEntity.ok("Session deleted.");
+        } catch (Exception e) {
+            // Already deleted by a concurrent request
+            return ResponseEntity.ok("Session deleted.");
+        }
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

@@ -6,22 +6,32 @@
     <title>Oracle — AksharaNexus</title>
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/chat.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
-<!-- ── SIDEBAR ── -->
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
+        <div class="sidebar-brand">
+            <img src="favicon-96x96.png" alt="AksharaNexus" class="sidebar-logo">
+            <div class="sidebar-brand-text">
+                <span class="sidebar-brand-name">AksharaNexus</span>
+                <span class="sidebar-brand-sub">Oracle</span>
+            </div>
+        </div>
         <button class="sidebar-new-btn" id="new-chat-btn">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
             New chat
         </button>
+        <div class="sidebar-history-label">Chat History</div>
     </div>
-    <div class="sidebar-sessions" id="sidebar-sessions">
-        <!-- populated by JS -->
+    <div class="sidebar-sessions" id="sidebar-sessions"></div>
+    <div class="sidebar-footer">
+        <div class="sidebar-footer-tagline">Ancient knowledge, modern answers</div>
     </div>
 </div>
 

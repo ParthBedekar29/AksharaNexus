@@ -32,6 +32,10 @@ public class LLMService {
         return result;
     }
 
+    public String generateFast(String systemPrompt, String userMessage) {
+        return callLLM(FALLBACK_MODEL, systemPrompt, userMessage);
+    }
+
     private String callLLM(String model, String systemPrompt, String userMessage) {
         try {
             HttpClient client = HttpClient.newHttpClient();

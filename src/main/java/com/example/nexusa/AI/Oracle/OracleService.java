@@ -194,9 +194,8 @@
                     || type == QueryType.META
                     || type == QueryType.OFF_TOPIC) {
 
-                // Still use SECURITY_RULES — the user message itself is an injection surface
                 String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
-                String answer = llmService.generate(system, sanitiseQuery(userQuery));
+                String answer = llmService.generateFast(system, sanitiseQuery(userQuery));
                 return new OracleResponse(answer, List.of(), null);
             }
 

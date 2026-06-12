@@ -29,7 +29,7 @@ public class ChatSession {
     @Column(nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
 
-    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "session", orphanRemoval = true)  // remove CascadeType.ALL
     @JsonIgnore
     private List<ChatMessage> messages = new ArrayList<>();
 }

@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -23,30 +24,38 @@ public class LLMService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String generate(String systemPrompt, String userMessage) {
-        String result = callLLM(PRIMARY_MODEL, systemPrompt, userMessage);
+    public String generate(String systemPrompt, String userMessage,
+                           List<Map<String, String>> history) {
+        String result = callLLM(PRIMARY_MODEL, systemPrompt, userMessage, history);
         if (result.startsWith("RATE_LIMITED:")) {
             System.err.println("Primary model rate-limited, falling back to " + FALLBACK_MODEL);
-            result = callLLM(FALLBACK_MODEL, systemPrompt, userMessage);
+            result = callLLM(FALLBACK_MODEL, systemPrompt, userMessage, history);
         }
         return result;
     }
 
-    public String generateFast(String systemPrompt, String userMessage) {
-        return callLLM(FALLBACK_MODEL, systemPrompt, userMessage);
+    public String generateFast(String systemPrompt, String userMessage,
+                               List<Map<String, String>> history) {
+        return callLLM(FALLBACK_MODEL, systemPrompt, userMessage, history);
     }
 
-    private String callLLM(String model, String systemPrompt, String userMessage) {
+    private String callLLM(String model, String systemPrompt, String userMessage,
+                           List<Map<String, String>> history) {
         try {
             HttpClient client = HttpClient.newHttpClient();
+
+            // Build message list: system → history → current user message
+            List<Map<String, Object>> messages = new ArrayList<>();
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+            for (Map<String, String> turn : history) {
+                messages.add(Map.of("role", turn.get("role"), "content", turn.get("content")));
+            }
+            messages.add(Map.of("role", "user", "content", userMessage));
 
             Map<String, Object> body = Map.of(
                     "model", model,
                     "max_tokens", 4096,
-                    "messages", List.of(
-                            Map.of("role", "system", "content", systemPrompt),
-                            Map.of("role", "user", "content", userMessage)
-                    )
+                    "messages", messages
             );
 
             HttpRequest request = HttpRequest.newBuilder()
@@ -62,7 +71,6 @@ public class LLMService {
             if (response.statusCode() == 429) {
                 return "RATE_LIMITED:" + root.path("error").path("message").asText("rate limit reached");
             }
-
             if (response.statusCode() != 200) {
                 String errorMsg  = root.path("error").path("message").asText("Unknown API error");
                 String errorType = root.path("error").path("type").asText("");
@@ -71,11 +79,9 @@ public class LLMService {
 
             JsonNode content = root.path("choices").path(0).path("message").path("content");
             if (content.isMissingNode() || content.asText().isBlank()) {
-                System.err.println("OpenAI empty response body: " + response.body());
                 return "Error: The AI model returned an empty response. Raw: "
                         + response.body().substring(0, Math.min(300, response.body().length()));
             }
-
             return content.asText();
 
         } catch (Exception e) {

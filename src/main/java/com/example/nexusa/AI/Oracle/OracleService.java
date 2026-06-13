@@ -7,10 +7,7 @@ import com.example.nexusa.AI.Oracle.dto.TimelineEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -149,13 +146,12 @@ public class OracleService {
             if (lower.contains(signal)) return QueryType.OFF_TOPIC;
         }
 
-        // Timeline detection
-        if (lower.startsWith("timeline") || lower.contains("timeline of")
-                || lower.contains("chronology of") || lower.contains("events of")
-                || lower.contains("history of events")) {
+
+
+        if (lower.contains("timeline") || lower.contains("chronology of")
+                || lower.contains("events of") || lower.contains("history of events")) {
             return QueryType.TIMELINE;
         }
-
         // Comparative detection
         if (lower.contains(" vs ") || lower.contains(" versus ")
                 || lower.contains("compare ") || lower.contains("difference between")
@@ -229,12 +225,17 @@ public class OracleService {
         // ── Timeline ──────────────────────────────────────────────────────────
         if (type == QueryType.TIMELINE) {
             String civName = intent.getCivilizationName();
+
+            // Intent extractor only knows civs in the DB — extract from raw query as fallback
+            if (civName == null || civName.isBlank()) {
+                civName = extractCivNameFromQuery(rewrittenQuery);
+            }
+
             if (civName == null || civName.isBlank()) {
                 return new OracleResponse(
                         "Please name a civilization for the timeline — e.g. 'timeline of the Roman Empire'.",
                         List.of(), null, null);
             }
-
             List<TimelineEvent> events = timelineService.buildTimeline(civName);
 
             if (!events.isEmpty()) {
@@ -555,29 +556,25 @@ public class OracleService {
         return sb.toString();
     }
 
-    // Simple similarity check — enough for near-duplicate detection
-    private double similarity(String a, String b) {
-        if (a.equals(b)) return 1.0;
-        int longer = Math.max(a.length(), b.length());
-        if (longer == 0) return 1.0;
-        int dist = levenshtein(a.substring(0, Math.min(200, a.length())),
-                b.substring(0, Math.min(200, b.length())));
-        return 1.0 - (double) dist / longer;
-    }
+    /**
+     * Last-resort civ name extraction for timeline queries when IntentExtractor
+     * returns null (civ not in DB). Strips common timeline trigger words and
+     * returns whatever noun phrase remains.
+     */
+    private String extractCivNameFromQuery(String query) {
+        String cleaned = query
+                .replaceAll("(?i)^(give me a |show me a |show |give me |)timeline (of|for|about|of the|for the)?", "")
+                .replaceAll("(?i)^(chronology|events|history of events) (of|for|about|of the|for the)?", "")
+                .replaceAll("(?i)\\b(timeline|chronology|events|history|ancient|civilization|empire)\\b", "")
+                .replaceAll("\\s+", " ")
+                .trim();
 
-    private int levenshtein(String a, String b) {
-        int m = a.length(), n = b.length();
-        int[] prev = new int[n + 1], curr = new int[n + 1];
-        for (int j = 0; j <= n; j++) prev[j] = j;
-        for (int i = 1; i <= m; i++) {
-            curr[0] = i;
-            for (int j = 1; j <= n; j++) {
-                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
-                curr[j] = Math.min(Math.min(curr[j-1]+1, prev[j]+1), prev[j-1]+cost);
-            }
-            int[] tmp = prev; prev = curr; curr = tmp;
-        }
-        return prev[n];
+        // Capitalize properly — "roman empire" → "Roman Empire"
+        if (cleaned.isBlank()) return null;
+        return Arrays.stream(cleaned.split("\\s+"))
+                .filter(w -> !w.isBlank())
+                .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1).toLowerCase())
+                .collect(Collectors.joining(" "));
     }
 
 }

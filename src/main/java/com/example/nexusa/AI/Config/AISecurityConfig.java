@@ -33,9 +33,6 @@ public class AISecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ai/auth/**").permitAll()
-
-                        .requestMatchers("/oracle/query/stream").permitAll()
-
                         .requestMatchers("/ai/account/**").hasRole("VIEWER")
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
                         .requestMatchers("/ai/chat/**").hasRole("VIEWER")

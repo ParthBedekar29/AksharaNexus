@@ -3,6 +3,7 @@ package com.example.nexusa.AI.Oracle;
 import com.example.nexusa.AI.Oracle.dto.OracleResponse;
 import com.example.nexusa.AI.Oracle.dto.QueryIntent;
 import com.example.nexusa.AI.Oracle.dto.RankedBlock;
+import com.example.nexusa.AI.Oracle.dto.TimelineEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,8 @@ public class OracleService {
     private final LLMService llmService;
     private final ConversationStore conversationStore;
     private final PromptInjectionDetector injectionDetector;
+    private final QueryRewriter queryRewriter;
+    private final TimelineService timelineService;
 
     private static final int MAX_QUERY_CHARS   = 800;
     private static final int MAX_CONTEXT_CHARS = 12_000;
@@ -80,8 +83,10 @@ public class OracleService {
         META,
         OFF_TOPIC,
         VAGUE_HISTORICAL,
+        COMPARATIVE,
         RESEARCH,
-        STRUCTURED_RESEARCH
+        STRUCTURED_RESEARCH,
+        TIMELINE
     }
 
     private static final List<String> CONVERSATIONAL_TRIGGERS = List.of(
@@ -142,6 +147,20 @@ public class OracleService {
             if (lower.contains(signal)) return QueryType.OFF_TOPIC;
         }
 
+        // Timeline detection
+        if (lower.startsWith("timeline") || lower.contains("timeline of")
+                || lower.contains("chronology of") || lower.contains("events of")
+                || lower.contains("history of events")) {
+            return QueryType.TIMELINE;
+        }
+
+        // Comparative detection
+        if (lower.contains(" vs ") || lower.contains(" versus ")
+                || lower.contains("compare ") || lower.contains("difference between")
+                || lower.contains("similarities between")) {
+            return QueryType.COMPARATIVE;
+        }
+
         boolean hasCiv   = intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank();
         boolean hasTopic = intent.getTopic() != null;
         boolean hasYear  = intent.getStartYear() != null || intent.getEndYear() != null;
@@ -154,7 +173,7 @@ public class OracleService {
         if ((hasCiv || hasTopic || hasYear) && isStructuredDetailRequest(query))
             return QueryType.STRUCTURED_RESEARCH;
         if (hasCiv || hasTopic || hasYear) return QueryType.VAGUE_HISTORICAL;
-        if (lower.split("\\s+").length <= 3)  return QueryType.CONVERSATIONAL;
+        if (lower.split("\\s+").length <= 3) return QueryType.CONVERSATIONAL;
 
         return QueryType.VAGUE_HISTORICAL;
     }
@@ -166,38 +185,100 @@ public class OracleService {
         if (injectionDetector.isInjectionAttempt(userQuery)) {
             return new OracleResponse(
                     "I can't process requests that attempt to override system behavior or access internal configuration.",
-                    List.of(),
-                    null
+                    List.of(), null, null
             );
         }
 
         if (userQuery == null || userQuery.isBlank()) {
-            return new OracleResponse("Please enter a question.", List.of(), null);
+            return new OracleResponse("Please enter a question.", List.of(), null, null);
         }
         if (userQuery.length() > MAX_QUERY_CHARS) {
             return new OracleResponse(
                     "Your question is too long. Please keep it under "
                             + MAX_QUERY_CHARS + " characters.",
-                    List.of(), null
+                    List.of(), null, null
             );
         }
 
-        QueryIntent intent = intentExtractor.extract(userQuery);
-        QueryType   type   = classify(userQuery, intent);
+        // ── Rewrite + conversation-aware intent — happens first, before classify ──
+        List<Map<String, String>> history = conversationStore.getHistory(sessionId);
+        String rewrittenQuery = queryRewriter.rewrite(userQuery, history);
+
+        QueryIntent intent = intentExtractor.extract(
+                rewrittenQuery,
+                conversationStore.getLastCivilization(sessionId)
+        );
+        QueryType type = classify(rewrittenQuery, intent);
 
         // ── Non-research paths ────────────────────────────────────────────────
         if (type == QueryType.CONVERSATIONAL
                 || type == QueryType.META
                 || type == QueryType.OFF_TOPIC) {
 
-            String system  = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
-            List<Map<String, String>> history = conversationStore.getHistory(sessionId);
-            String answer  = llmService.generateFast(system, sanitiseQuery(userQuery), history);
+            String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
+            String answer = llmService.generateFast(system, sanitiseQuery(userQuery), history);
 
             conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
             conversationStore.addAssistantTurn(sessionId, answer);
 
-            return new OracleResponse(answer, List.of(), null);
+            return new OracleResponse(answer, List.of(), null, null);
+        }
+
+        // ── Timeline ──────────────────────────────────────────────────────────
+        if (type == QueryType.TIMELINE) {
+            String civName = intent.getCivilizationName();
+            if (civName == null || civName.isBlank()) {
+                return new OracleResponse(
+                        "Please name a civilization for the timeline — e.g. 'timeline of the Roman Empire'.",
+                        List.of(), null, null);
+            }
+            List<TimelineEvent> events = timelineService.buildTimeline(civName);
+            if (events.isEmpty()) {
+                return new OracleResponse(
+                        "No timeline events found for " + civName + " in the AksharaNexus database.",
+                        List.of(), civName, List.of());
+            }
+            String summary = llmService.generateFast(
+                    SECURITY_RULES + "\nWrite a 2-sentence overview of the " + civName
+                            + " civilization's historical arc to introduce a timeline. Plain prose, no headers.",
+                    "Introduce the timeline for: " + civName,
+                    List.of()
+            );
+            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+            conversationStore.addAssistantTurn(sessionId, summary);
+            if (!civName.isBlank()) conversationStore.setLastCivilization(sessionId, civName);
+            return new OracleResponse(summary, List.of(), civName, events);
+        }
+
+        // ── Comparative ───────────────────────────────────────────────────────
+        if (type == QueryType.COMPARATIVE) {
+            String[] civs = intentExtractor.extractTwoCivilizations(rewrittenQuery);
+            List<CentralSearchService.ParsedEntry> entries =
+                    (civs[0] != null && civs[1] != null)
+                            ? searchService.fetchForTwoCivilizations(civs[0], civs[1])
+                            : searchService.fetchAndParseEntries(intent);
+
+            List<RankedBlock> topBlocks = blockRanker.rank(entries, intent).stream()
+                    .limit(10).collect(Collectors.toList());
+
+            String rawContext  = buildContext(topBlocks);
+            String context     = truncate(rawContext, MAX_CONTEXT_CHARS);
+            boolean hasContext = !context.isBlank();
+
+            String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(QueryType.COMPARATIVE, hasContext, userQuery);
+            String userMessage  = hasContext
+                    ? buildIsolatedUserMessage(context, userQuery)
+                    : "User Question:\n" + sanitiseQuery(userQuery);
+
+            String answer = llmService.generate(systemPrompt, userMessage, history);
+            if (answer.startsWith("RATE_LIMITED:")) {
+                return new OracleResponse(
+                        "The Oracle is briefly resting — please try again in a few hours.",
+                        List.of(), null, null);
+            }
+            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+            conversationStore.addAssistantTurn(sessionId, answer);
+            return new OracleResponse(answer, getCitations(topBlocks), null, null);
         }
 
         // ── Research / vague-historical ───────────────────────────────────────
@@ -217,21 +298,23 @@ public class OracleService {
                 ? buildIsolatedUserMessage(context, userQuery)
                 : "User Question:\n" + sanitiseQuery(userQuery);
 
-        List<Map<String, String>> history = conversationStore.getHistory(sessionId);
         String answer = llmService.generate(systemPrompt, userMessage, history);
 
         if (answer.startsWith("RATE_LIMITED:")) {
             return new OracleResponse(
                     "The Oracle is briefly resting — daily query capacity has been reached. " +
                             "Please try again in a few hours.",
-                    List.of(), null
+                    List.of(), null, null
             );
         }
 
         conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
         conversationStore.addAssistantTurn(sessionId, answer);
+        if (intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank()) {
+            conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());
+        }
 
-        return new OracleResponse(answer, getCitations(topBlocks), intent.getCivilizationName());
+        return new OracleResponse(answer, getCitations(topBlocks), intent.getCivilizationName(), null);
     }
 
     // ── Context isolation wrapper ─────────────────────────────────────────────
@@ -278,6 +361,24 @@ public class OracleService {
             Suggest a general-purpose AI for that kind of request and invite
             them to ask something historical instead.
             Warm but firm tone. No markdown, no headers, plain prose.
+            """;
+
+            case COMPARATIVE -> """
+            You are a scholarly AI historian writing a structured comparison.
+            """ + (hasContext
+                    ? "Use the provided AksharaNexus database records as your primary source."
+                    : "No specific records found. Use your historical knowledge and note this once.") + """
+
+            STRUCTURE — FOLLOW EXACTLY:
+            - Open with one paragraph establishing WHY this comparison is historically meaningful.
+            - Use a ## heading for each major theme being compared (e.g. ## Governance, ## Trade).
+            - Under each ## heading, discuss both subjects in parallel — not one then the other.
+            - Use **bold** to mark the civilization or subject name at first mention in each paragraph.
+            - End with ## Verdict: a 2-3 sentence interpretive conclusion on what the comparison reveals.
+
+            NEVER write "Subject A: ... Subject B: ..." as separate blocks.
+            Write integrated paragraphs that directly compare the two throughout.
+            No filler phrases. Specific evidence only.
             """;
 
             case VAGUE_HISTORICAL -> """
@@ -377,6 +478,9 @@ public class OracleService {
             - Write with specificity. Prefer "copper tools moved via the Ghaggar-Hakra corridor" over "trade occurred".
             - Label any point not from database records with 📚.
             """;
+
+            // TIMELINE has no behavior prompt — it uses a direct LLM call in query()
+            case TIMELINE -> "";
         };
     }
 

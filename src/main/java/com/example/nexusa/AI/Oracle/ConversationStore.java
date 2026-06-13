@@ -49,7 +49,7 @@ public class ConversationStore {
         // Each element: {"role": "user"/"assistant", "content": "..."}
         private final LinkedList<Map<String, String>> turns = new LinkedList<>();
         volatile long lastUsedMs = System.currentTimeMillis();
-
+        volatile String lastCivilization = null;
         synchronized void add(String role, String content) {
             turns.addLast(Map.of("role", role, "content", content));
             // Keep only the last MAX_TURNS*2 messages (user + assistant pairs)
@@ -61,5 +61,15 @@ public class ConversationStore {
             lastUsedMs = System.currentTimeMillis();
             return List.copyOf(turns);
         }
+    }
+    // ── Civilization memory ───────────────────────────────────────────────────
+
+    public void setLastCivilization(String sessionId, String civName) {
+        getOrCreate(sessionId).lastCivilization = civName;
+    }
+
+    public String getLastCivilization(String sessionId) {
+        Session s = sessions.get(sessionId);
+        return s == null ? null : s.lastCivilization;
     }
 }

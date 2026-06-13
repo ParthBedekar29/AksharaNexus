@@ -118,6 +118,33 @@ public class IntentExtractor {
         // Only runs when all exact strategies miss — e.g. "Indes Valey" or "Mesopotamiaa"
         return fuzzyResolveCivName(tokens);
     }
+    // ── Conversation-aware entry point ────────────────────────────────────────
+
+    /**
+     * Extracts intent from a query that has already been rewritten,
+     * but also accepts the last resolved civilization from conversation
+     * history as a fallback when the rewritten query still has no civ.
+     */
+    public QueryIntent extract(String query, String fallbackCivilization) {
+        QueryIntent intent = extract(query); // existing logic unchanged
+        if ((intent.getCivilizationName() == null || intent.getCivilizationName().isBlank())
+                && fallbackCivilization != null && !fallbackCivilization.isBlank()) {
+            intent.setCivilizationName(fallbackCivilization);
+        }
+        return intent;
+    }
+    public String[] extractTwoCivilizations(String query) {
+        // Run the full sliding-window resolution twice with different seeds
+        // Simple approach: split on "vs", "versus", "and", "compare"
+        String lower = query.toLowerCase();
+        String[] parts = lower.split(" vs | versus | compare | and | between | difference ");
+        if (parts.length >= 2) {
+            String civ1 = resolveCivName(parts[0].trim());
+            String civ2 = resolveCivName(parts[1].trim());
+            if (civ1 != null && civ2 != null) return new String[]{civ1, civ2};
+        }
+        return new String[]{null, null};
+    }
 
     /**
      * Compares every n-gram candidate window against ALL stored civ titles

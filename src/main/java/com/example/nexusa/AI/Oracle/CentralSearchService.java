@@ -39,7 +39,17 @@ public class CentralSearchService {
         }
         return entryRepository.findByCivName(intent.getCivilizationName());
     }
-
+    // In CentralSearchService
+    public List<ParsedEntry> fetchForTwoCivilizations(String civ1, String civ2) {
+        List<ParsedEntry> results = new ArrayList<>();
+        QueryIntent i1 = new QueryIntent();
+        i1.setCivilizationName(civ1);
+        QueryIntent i2 = new QueryIntent();
+        i2.setCivilizationName(civ2);
+        results.addAll(fetchAndParseEntries(i1));
+        results.addAll(fetchAndParseEntries(i2));
+        return results;
+    }
     public ParsedEntry parseEntry(CentralEntry entry) {
         try {
             List<ParsedBlock> blocks = new ArrayList<>();

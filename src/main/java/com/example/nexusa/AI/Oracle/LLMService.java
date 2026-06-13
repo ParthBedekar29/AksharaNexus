@@ -121,13 +121,19 @@ public class LLMService {
                     .body()
                     .forEach(line -> {
                         if (!line.startsWith("data:")) return;
+
                         String data = line.substring(5).trim();
+
                         if ("[DONE]".equals(data)) return;
                         try {
                             JsonNode root  = objectMapper.readTree(data);
                             JsonNode delta = root.path("choices").path(0).path("delta").path("content");
                             if (!delta.isMissingNode() && !delta.asText().isEmpty()) {
                                 onToken.accept(delta.asText());
+                            }if (!delta.isMissingNode() && !delta.asText().isEmpty()) {
+                                // Encode newlines so SSE data: lines stay single-line
+                                String encoded = delta.asText().replace("\n", "\\n");
+                                onToken.accept(encoded);
                             }
                         } catch (Exception ignored) {}
                     });

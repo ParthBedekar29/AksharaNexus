@@ -207,6 +207,10 @@ public class OracleService {
                 conversationStore.getLastCivilization(sessionId)
         );
         QueryType type = classify(rewrittenQuery, intent);
+        if (type != QueryType.TIMELINE) {
+            QueryType originalType = classify(sanitiseQuery(userQuery), intentExtractor.extract(sanitiseQuery(userQuery), null));
+            if (originalType == QueryType.TIMELINE) type = QueryType.TIMELINE;
+        }
 
         // ── Non-research paths ────────────────────────────────────────────────
         if (type == QueryType.CONVERSATIONAL

@@ -33,9 +33,13 @@ public class AISecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ai/auth/**").permitAll()
-                        .requestMatchers("/ai/account/**").hasRole("VIEWER")  // ← added
+
+                        .requestMatchers("/oracle/query/stream").permitAll()
+
+                        .requestMatchers("/ai/account/**").hasRole("VIEWER")
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
-                        .requestMatchers("/ai/chat/**").hasRole("VIEWER").requestMatchers("/oracle/query/stream").permitAll()
+                        .requestMatchers("/ai/chat/**").hasRole("VIEWER")
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(aiJwtFilter, UsernamePasswordAuthenticationFilter.class);

@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/oracle")
@@ -22,8 +23,36 @@ public class OracleController {
                 && !"anonymousUser".equals(authentication.getPrincipal())
                 ? "user:" + authentication.getPrincipal().toString()
                 : "ip:unknown";
-
         return oracleService.query(request.getQuery(), sessionId);
+    }
+
+    @PostMapping(value = "/stream", produces = "text/event-stream")
+    public SseEmitter stream(@Valid @RequestBody QueryRequest request,
+                             Authentication authentication) {
+        String sessionId = authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getPrincipal())
+                ? "user:" + authentication.getPrincipal().toString()
+                : "ip:unknown";
+
+        SseEmitter emitter = new SseEmitter(120_000L);
+
+        Thread.ofVirtual().start(() -> {
+            try {
+                oracleService.queryStream(request.getQuery(), sessionId, token -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(token));
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                });
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
     }
 
     @lombok.Data

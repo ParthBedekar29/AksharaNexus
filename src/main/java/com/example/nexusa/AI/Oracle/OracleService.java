@@ -514,5 +514,75 @@ public class OracleService {
         }
         return sb.toString();
     }
+    // Add to OracleService.java
+    public void queryStream(String userQuery, String sessionId,
+                            java.util.function.Consumer<String> onToken) {
+
+        if (injectionDetector.isInjectionAttempt(userQuery)) {
+            onToken.accept("I can't process requests that attempt to override system behavior.");
+            return;
+        }
+        if (userQuery == null || userQuery.isBlank()) { onToken.accept("Please enter a question."); return; }
+        if (userQuery.length() > MAX_QUERY_CHARS) {
+            onToken.accept("Your question is too long. Please keep it under " + MAX_QUERY_CHARS + " characters.");
+            return;
+        }
+
+        List<Map<String, String>> history = conversationStore.getHistory(sessionId);
+        String rewrittenQuery = queryRewriter.rewrite(userQuery, history);
+        QueryIntent intent    = intentExtractor.extract(rewrittenQuery, conversationStore.getLastCivilization(sessionId));
+        QueryType  type       = classify(rewrittenQuery, intent);
+
+        // Non-streaming short-circuit paths (conversational, meta, off-topic)
+        if (type == QueryType.CONVERSATIONAL || type == QueryType.META || type == QueryType.OFF_TOPIC) {
+            String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
+            // generateFast is still synchronous — fine, these are short
+            String answer = llmService.generateFast(system, sanitiseQuery(userQuery), history);
+            onToken.accept(answer);
+            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+            conversationStore.addAssistantTurn(sessionId, answer);
+            return;
+        }
+
+        // Timeline — no streaming needed (short summary)
+        if (type == QueryType.TIMELINE) {
+            // delegate to existing sync logic and push as single chunk
+            OracleResponse r = query(userQuery, sessionId);
+            onToken.accept(r.getAnswer());
+            return;
+        }
+
+        // Research / Comparative — use streaming
+        List<CentralSearchService.ParsedEntry> entries =
+                (type == QueryType.COMPARATIVE)
+                        ? (intentExtractor.extractTwoCivilizations(rewrittenQuery)[0] != null
+                           ? searchService.fetchForTwoCivilizations(
+                        intentExtractor.extractTwoCivilizations(rewrittenQuery)[0],
+                        intentExtractor.extractTwoCivilizations(rewrittenQuery)[1])
+                           : searchService.fetchAndParseEntries(intent))
+                        : searchService.fetchAndParseEntries(intent);
+
+        List<RankedBlock> topBlocks = blockRanker.rank(entries, intent).stream()
+                .limit(10).collect(Collectors.toList());
+
+        String context    = truncate(buildContext(topBlocks), MAX_CONTEXT_CHARS);
+        boolean hasCtx    = !context.isBlank();
+        String sysPrompt  = SECURITY_RULES + "\n" + behaviorPromptFor(type, hasCtx, userQuery);
+        String userMsg    = hasCtx ? buildIsolatedUserMessage(context, userQuery)
+                : "User Question:\n" + sanitiseQuery(userQuery);
+
+        StringBuilder fullAnswer = new StringBuilder();
+        llmService.generateStream(sysPrompt, userMsg, history, token -> {
+            fullAnswer.append(token);
+            onToken.accept(token);           // push each token to SSE
+        });
+
+        String answer = fullAnswer.toString();
+        conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+        conversationStore.addAssistantTurn(sessionId, answer);
+        if (intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank()) {
+            conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());
+        }
+    }
 
 }

@@ -23,7 +23,7 @@ public class LLMService {
     private static final String FALLBACK_MODEL = "gpt-4o-mini";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient client = HttpClient.newHttpClient();
+
     public String generate(String systemPrompt, String userMessage,
                            List<Map<String, String>> history) {
         String result = callLLM(PRIMARY_MODEL, systemPrompt, userMessage, history);
@@ -86,56 +86,6 @@ public class LLMService {
 
         } catch (Exception e) {
             return "Error generating response: " + e.getMessage();
-        }
-    }
-    // Add to LLMService.java
-
-    public void generateStream(String systemPrompt,
-                               String userMessage,
-                               List<Map<String, String>> history,
-                               java.util.function.Consumer<String> onToken) {
-        try {
-            List<Map<String, Object>> messages = new ArrayList<>();
-            messages.add(Map.of("role", "system", "content", systemPrompt));
-            for (Map<String, String> turn : history) {
-                messages.add(Map.of("role", turn.get("role"), "content", turn.get("content")));
-            }
-            messages.add(Map.of("role", "user", "content", userMessage));
-
-            Map<String, Object> body = Map.of(
-                    "model",      PRIMARY_MODEL,
-                    "max_tokens", 4096,
-                    "stream",     true,          // ← key flag
-                    "messages",   messages
-            );
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.openai.com/v1/chat/completions"))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
-                    .build();
-
-            // Stream the response line-by-line
-            client.send(request, HttpResponse.BodyHandlers.ofLines())
-                    .body()
-                    .forEach(line -> {
-                        if (!line.startsWith("data:")) return;
-
-                        String data = line.substring(5).trim();
-
-                        if ("[DONE]".equals(data)) return;
-                        try {
-                            JsonNode root  = objectMapper.readTree(data);
-                            JsonNode delta = root.path("choices").path(0).path("delta").path("content");
-                            if (!delta.isMissingNode() && !delta.asText().isEmpty()) {
-                                onToken.accept(delta.asText());
-                            }
-                        } catch (Exception ignored) {}
-                    });
-
-        } catch (Exception e) {
-            onToken.accept("\n\n[Stream error: " + e.getMessage() + "]");
         }
     }
 }

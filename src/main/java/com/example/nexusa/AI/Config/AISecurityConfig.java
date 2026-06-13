@@ -49,15 +49,17 @@ public class AISecurityConfig {
         config.setAllowedOrigins(List.of(
                 "https://aksharaoracle.netlify.app", "http://localhost:63342"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Cache-Control")); // ← added Accept, Cache-Control
-        config.setAllowCredentials(false);
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "DELETE", "OPTIONS"  // ← added DELETE
+        ));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));  // explicit, not "*"
+        config.setAllowCredentials(false);  // resend has no token, credentials not needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/oracle/**",     config);
-        source.registerCorsConfiguration("/ai/auth/**",    config);
-        source.registerCorsConfiguration("/ai/account/**", config);
-        source.registerCorsConfiguration("/ai/chat/**",    config);
+        source.registerCorsConfiguration("/oracle/**",      config);
+        source.registerCorsConfiguration("/ai/auth/**",     config);
+        source.registerCorsConfiguration("/ai/account/**",  config);
+        source.registerCorsConfiguration("/ai/chat/**", config);// ← added
         return source;
     }
 }

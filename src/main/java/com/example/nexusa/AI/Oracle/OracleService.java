@@ -221,19 +221,19 @@ public class OracleService {
 
             return new OracleResponse(answer, List.of(), null, null);
         }
-
+        QueryIntent timelineIntent = type == QueryType.TIMELINE
+                ? intentExtractor.extract(sanitiseQuery(userQuery), null)  // null = no fallback civ
+                : intent;
         // ── Timeline ──────────────────────────────────────────────────────────
         if (type == QueryType.TIMELINE) {
             // Step 1: get raw civ name from query text directly — don't trust fuzzy intent
-            String rawCivName = extractCivNameFromQuery(rewrittenQuery);
-
+            String rawCivName = extractCivNameFromQuery(sanitiseQuery(userQuery));
             // Step 2: check if it actually exists in DB by title match (no fuzzy)
-            String dbCivName = intent.getCivilizationName();
+            String dbCivName = timelineIntent.getCivilizationName();
             boolean civInDb = dbCivName != null && !dbCivName.isBlank()
                     && rawCivName != null
                     && dbCivName.toLowerCase().contains(rawCivName.toLowerCase().split("\\s+")[0]);
 
-            // Use raw name for display/LLM, DB name only for actual DB lookup
             String civName = civInDb ? dbCivName : rawCivName;
 
             if (civName == null || civName.isBlank()) {

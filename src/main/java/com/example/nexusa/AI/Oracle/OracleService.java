@@ -211,7 +211,9 @@ public class OracleService {
             QueryType originalType = classify(sanitiseQuery(userQuery), intentExtractor.extract(sanitiseQuery(userQuery), null));
             if (originalType == QueryType.TIMELINE) type = QueryType.TIMELINE;
         }
-
+        QueryIntent timelineIntent = type == QueryType.TIMELINE
+                ? intentExtractor.extract(sanitiseQuery(userQuery), null)
+                : intent;
         // ── Non-research paths ────────────────────────────────────────────────
         if (type == QueryType.CONVERSATIONAL
                 || type == QueryType.META
@@ -225,9 +227,7 @@ public class OracleService {
 
             return new OracleResponse(answer, List.of(), null, null);
         }
-        QueryIntent timelineIntent = type == QueryType.TIMELINE
-                ? intentExtractor.extract(sanitiseQuery(userQuery), null)  // null = no fallback civ
-                : intent;
+
         // ── Timeline ──────────────────────────────────────────────────────────
         if (type == QueryType.TIMELINE) {
             // Step 1: get raw civ name from query text directly — don't trust fuzzy intent

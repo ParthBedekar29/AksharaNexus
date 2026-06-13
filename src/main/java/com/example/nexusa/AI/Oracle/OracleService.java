@@ -234,22 +234,53 @@ public class OracleService {
                         "Please name a civilization for the timeline — e.g. 'timeline of the Roman Empire'.",
                         List.of(), null, null);
             }
+
             List<TimelineEvent> events = timelineService.buildTimeline(civName);
-            if (events.isEmpty()) {
-                return new OracleResponse(
-                        "No timeline events found for " + civName + " in the AksharaNexus database.",
-                        List.of(), civName, List.of());
+
+            if (!events.isEmpty()) {
+                // DB path — civ exists and has event blocks
+                String summary = llmService.generateFast(
+                        SECURITY_RULES + "\nWrite a 2-sentence overview of the " + civName
+                                + " civilization's historical arc to introduce a timeline. Plain prose, no headers.",
+                        "Introduce the timeline for: " + civName,
+                        List.of()
+                );
+                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addAssistantTurn(sessionId, summary);
+                conversationStore.setLastCivilization(sessionId, civName);
+                return new OracleResponse(summary, List.of(), civName, events);
+
+            } else {
+                // Fallback — civ not in DB or has no event blocks, use LLM general knowledge
+                String systemPrompt = SECURITY_RULES + """
+
+            The user wants a timeline for a civilization not found in the AksharaNexus database.
+            Use your general historical knowledge and label everything with 📚.
+
+            Respond in this EXACT format — a 1-sentence intro, then a markdown list:
+
+            A brief 1-sentence arc of the civilization.
+
+            - **[DATE]** — Event title: Short description.
+            - **[DATE]** — Event title: Short description.
+
+            Include 8–12 key events in chronological order.
+            Dates must be specific (e.g. 753 BCE, 44 BCE, 476 CE).
+            No headers, no prose paragraphs, just the intro line and the list.
+            """;
+
+                String answer = llmService.generateFast(
+                        systemPrompt,
+                        "Give a chronological timeline of key events for: " + civName,
+                        List.of()
+                );
+
+                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addAssistantTurn(sessionId, answer);
+                conversationStore.setLastCivilization(sessionId, civName);
+                // No timeline[] — renders as plain markdown instead
+                return new OracleResponse(answer, List.of(), civName, null);
             }
-            String summary = llmService.generateFast(
-                    SECURITY_RULES + "\nWrite a 2-sentence overview of the " + civName
-                            + " civilization's historical arc to introduce a timeline. Plain prose, no headers.",
-                    "Introduce the timeline for: " + civName,
-                    List.of()
-            );
-            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
-            conversationStore.addAssistantTurn(sessionId, summary);
-            if (!civName.isBlank()) conversationStore.setLastCivilization(sessionId, civName);
-            return new OracleResponse(summary, List.of(), civName, events);
         }
 
         // ── Comparative ───────────────────────────────────────────────────────
@@ -505,25 +536,21 @@ public class OracleService {
                 .limit(5)
                 .toList();
     }
-
     private String buildContext(List<RankedBlock> blocks) {
         StringBuilder sb = new StringBuilder();
-        Set<String> seenContent = new LinkedHashSet<>(); // ← add this
+        Set<String> seenHashes = new LinkedHashSet<>();
 
         for (RankedBlock b : blocks) {
-            // Normalize content for dedup check
-            String normalized = b.getFormattedContent().trim().toLowerCase();
+            // Use first 200 chars as fingerprint — enough to catch boilerplate dupes
+            String content = b.getFormattedContent().trim();  // or .getContent() — match your DTO
+            String fingerprint = content.substring(0, Math.min(200, content.length())).toLowerCase();
 
-            // Skip if we've seen near-identical content already
-            if (seenContent.stream().anyMatch(seen -> similarity(seen, normalized) > 0.85)) {
-                continue;
-            }
-            seenContent.add(normalized);
+            if (!seenHashes.add(fingerprint)) continue;  // Set.add() returns false if already present
 
             sb.append("[").append(b.getBlockType()).append("] ")
                     .append(b.getEntryTitle())
                     .append(" (").append(b.getVolumeTitle()).append(")\n")
-                    .append(b.getFormattedContent()).append("\n\n");
+                    .append(content).append("\n\n");
         }
         return sb.toString();
     }

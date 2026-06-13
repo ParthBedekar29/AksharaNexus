@@ -177,7 +177,6 @@ public class OracleService {
     }
 
     // ── Main entry point ──────────────────────────────────────────────────────
-
     public OracleResponse query(String userQuery, String sessionId) {
 
         if (injectionDetector.isInjectionAttempt(userQuery)) {
@@ -198,31 +197,32 @@ public class OracleService {
             );
         }
 
-        // ── Rewrite + conversation-aware intent — happens first, before classify ──
         List<Map<String, String>> history = conversationStore.getHistory(sessionId);
         String rewrittenQuery = queryRewriter.rewrite(userQuery, history);
+        String cleanUserQuery = sanitiseQuery(userQuery);
 
         QueryIntent intent = intentExtractor.extract(
                 rewrittenQuery,
                 conversationStore.getLastCivilization(sessionId)
         );
         QueryType type = classify(rewrittenQuery, intent);
+
+        // Override: always check original query for timeline — rewriter pollutes it
         if (type != QueryType.TIMELINE) {
-            QueryType originalType = classify(sanitiseQuery(userQuery), intentExtractor.extract(sanitiseQuery(userQuery), null));
+            QueryType originalType = classify(cleanUserQuery,
+                    intentExtractor.extract(cleanUserQuery, null));
             if (originalType == QueryType.TIMELINE) type = QueryType.TIMELINE;
         }
-        QueryIntent timelineIntent = type == QueryType.TIMELINE
-                ? intentExtractor.extract(sanitiseQuery(userQuery), null)
-                : intent;
+
         // ── Non-research paths ────────────────────────────────────────────────
         if (type == QueryType.CONVERSATIONAL
                 || type == QueryType.META
                 || type == QueryType.OFF_TOPIC) {
 
             String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
-            String answer = llmService.generateFast(system, sanitiseQuery(userQuery), history);
+            String answer = llmService.generateFast(system, cleanUserQuery, history);
 
-            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+            conversationStore.addUserTurn(sessionId, cleanUserQuery);
             conversationStore.addAssistantTurn(sessionId, answer);
 
             return new OracleResponse(answer, List.of(), null, null);
@@ -230,13 +230,22 @@ public class OracleService {
 
         // ── Timeline ──────────────────────────────────────────────────────────
         if (type == QueryType.TIMELINE) {
-            // Step 1: get raw civ name from query text directly — don't trust fuzzy intent
-            String rawCivName = extractCivNameFromQuery(sanitiseQuery(userQuery));
-            // Step 2: check if it actually exists in DB by title match (no fuzzy)
+            // Always extract fresh from original query — never from rewritten
+            QueryIntent timelineIntent = intentExtractor.extract(cleanUserQuery, null);
+            String rawCivName = extractCivNameFromQuery(cleanUserQuery);
+
             String dbCivName = timelineIntent.getCivilizationName();
-            boolean civInDb = dbCivName != null && !dbCivName.isBlank()
-                    && rawCivName != null
-                    && dbCivName.toLowerCase().contains(rawCivName.toLowerCase().split("\\s+")[0]);
+
+            // Find first meaningful word in rawCivName (skip "of", "the", short words)
+            boolean civInDb = false;
+            if (dbCivName != null && !dbCivName.isBlank() && rawCivName != null) {
+                String[] rawWords = rawCivName.toLowerCase().split("\\s+");
+                String firstMeaningfulWord = Arrays.stream(rawWords)
+                        .filter(w -> w.length() > 3)
+                        .findFirst()
+                        .orElse(rawWords[0]);
+                civInDb = dbCivName.toLowerCase().contains(firstMeaningfulWord);
+            }
 
             String civName = civInDb ? dbCivName : rawCivName;
 
@@ -246,7 +255,6 @@ public class OracleService {
                         List.of(), null, null);
             }
 
-            // Step 3: only hit DB if we're confident the civ is actually there
             List<TimelineEvent> events = civInDb
                     ? timelineService.buildTimeline(dbCivName)
                     : List.of();
@@ -258,29 +266,28 @@ public class OracleService {
                         "Introduce the timeline for: " + civName,
                         List.of()
                 );
-                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addUserTurn(sessionId, cleanUserQuery);
                 conversationStore.addAssistantTurn(sessionId, summary);
                 conversationStore.setLastCivilization(sessionId, civName);
                 return new OracleResponse(summary, List.of(), civName, events);
 
             } else {
-                // LLM fallback — use rawCivName so "USA" stays "USA", not "Ancient Egypt"
                 String systemPrompt = SECURITY_RULES + """
 
-            The user wants a timeline for a civilization not found in the AksharaNexus database.
-            Use your general historical knowledge and label everything with 📚.
+                The user wants a timeline for a civilization not found in the AksharaNexus database.
+                Use your general historical knowledge and label everything with 📚.
 
-            Respond in this EXACT format — a 1-sentence intro, then a markdown list:
+                Respond in this EXACT format — a 1-sentence intro, then a markdown list:
 
-            A brief 1-sentence arc of the civilization.
+                A brief 1-sentence arc of the civilization.
 
-            - **[DATE]** — Event title: Short description.
-            - **[DATE]** — Event title: Short description.
+                - **[DATE]** — Event title: Short description.
+                - **[DATE]** — Event title: Short description.
 
-            Include 8–12 key events in chronological order.
-            Dates must be specific (e.g. 753 BCE, 44 BCE, 476 CE).
-            No headers, no prose paragraphs, just the intro line and the list.
-            """;
+                Include 8–12 key events in chronological order.
+                Dates must be specific (e.g. 753 BCE, 44 BCE, 476 CE).
+                No headers, no prose paragraphs, just the intro line and the list.
+                """;
 
                 String answer = llmService.generateFast(
                         systemPrompt,
@@ -288,7 +295,7 @@ public class OracleService {
                         List.of()
                 );
 
-                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addUserTurn(sessionId, cleanUserQuery);
                 conversationStore.addAssistantTurn(sessionId, answer);
                 conversationStore.setLastCivilization(sessionId, civName);
                 return new OracleResponse(answer, List.of(), civName, null);
@@ -313,7 +320,7 @@ public class OracleService {
             String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(QueryType.COMPARATIVE, hasContext, userQuery);
             String userMessage  = hasContext
                     ? buildIsolatedUserMessage(context, userQuery)
-                    : "User Question:\n" + sanitiseQuery(userQuery);
+                    : "User Question:\n" + cleanUserQuery;
 
             String answer = llmService.generate(systemPrompt, userMessage, history);
             if (answer.startsWith("RATE_LIMITED:")) {
@@ -321,14 +328,13 @@ public class OracleService {
                         "The Oracle is briefly resting — please try again in a few hours.",
                         List.of(), null, null);
             }
-            conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+            conversationStore.addUserTurn(sessionId, cleanUserQuery);
             conversationStore.addAssistantTurn(sessionId, answer);
             return new OracleResponse(answer, getCitations(topBlocks), null, null);
         }
 
         // ── Research / vague-historical ───────────────────────────────────────
-        List<CentralSearchService.ParsedEntry> entries =
-                searchService.fetchAndParseEntries(intent);
+        List<CentralSearchService.ParsedEntry> entries = searchService.fetchAndParseEntries(intent);
 
         List<RankedBlock> topBlocks = blockRanker.rank(entries, intent).stream()
                 .limit(10)
@@ -341,7 +347,7 @@ public class OracleService {
         String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(type, hasContext, userQuery);
         String userMessage  = hasContext
                 ? buildIsolatedUserMessage(context, userQuery)
-                : "User Question:\n" + sanitiseQuery(userQuery);
+                : "User Question:\n" + cleanUserQuery;
 
         String answer = llmService.generate(systemPrompt, userMessage, history);
 
@@ -353,7 +359,7 @@ public class OracleService {
             );
         }
 
-        conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+        conversationStore.addUserTurn(sessionId, cleanUserQuery);
         conversationStore.addAssistantTurn(sessionId, answer);
         if (intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank()) {
             conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());

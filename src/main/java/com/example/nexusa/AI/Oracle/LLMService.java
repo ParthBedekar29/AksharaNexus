@@ -130,10 +130,6 @@ public class LLMService {
                             JsonNode delta = root.path("choices").path(0).path("delta").path("content");
                             if (!delta.isMissingNode() && !delta.asText().isEmpty()) {
                                 onToken.accept(delta.asText());
-                            }if (!delta.isMissingNode() && !delta.asText().isEmpty()) {
-                                // Encode newlines so SSE data: lines stay single-line
-                                String encoded = delta.asText().replace("\n", "\\n");
-                                onToken.accept(encoded);
                             }
                         } catch (Exception ignored) {}
                     });

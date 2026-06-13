@@ -224,22 +224,30 @@ public class OracleService {
 
         // ── Timeline ──────────────────────────────────────────────────────────
         if (type == QueryType.TIMELINE) {
-            String civName = intent.getCivilizationName();
+            // Step 1: get raw civ name from query text directly — don't trust fuzzy intent
+            String rawCivName = extractCivNameFromQuery(rewrittenQuery);
 
-            // Intent extractor only knows civs in the DB — extract from raw query as fallback
-            if (civName == null || civName.isBlank()) {
-                civName = extractCivNameFromQuery(rewrittenQuery);
-            }
+            // Step 2: check if it actually exists in DB by title match (no fuzzy)
+            String dbCivName = intent.getCivilizationName();
+            boolean civInDb = dbCivName != null && !dbCivName.isBlank()
+                    && rawCivName != null
+                    && dbCivName.toLowerCase().contains(rawCivName.toLowerCase().split("\\s+")[0]);
+
+            // Use raw name for display/LLM, DB name only for actual DB lookup
+            String civName = civInDb ? dbCivName : rawCivName;
 
             if (civName == null || civName.isBlank()) {
                 return new OracleResponse(
                         "Please name a civilization for the timeline — e.g. 'timeline of the Roman Empire'.",
                         List.of(), null, null);
             }
-            List<TimelineEvent> events = timelineService.buildTimeline(civName);
+
+            // Step 3: only hit DB if we're confident the civ is actually there
+            List<TimelineEvent> events = civInDb
+                    ? timelineService.buildTimeline(dbCivName)
+                    : List.of();
 
             if (!events.isEmpty()) {
-                // DB path — civ exists and has event blocks
                 String summary = llmService.generateFast(
                         SECURITY_RULES + "\nWrite a 2-sentence overview of the " + civName
                                 + " civilization's historical arc to introduce a timeline. Plain prose, no headers.",
@@ -252,7 +260,7 @@ public class OracleService {
                 return new OracleResponse(summary, List.of(), civName, events);
 
             } else {
-                // Fallback — civ not in DB or has no event blocks, use LLM general knowledge
+                // LLM fallback — use rawCivName so "USA" stays "USA", not "Ancient Egypt"
                 String systemPrompt = SECURITY_RULES + """
 
             The user wants a timeline for a civilization not found in the AksharaNexus database.
@@ -279,7 +287,6 @@ public class OracleService {
                 conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
                 conversationStore.addAssistantTurn(sessionId, answer);
                 conversationStore.setLastCivilization(sessionId, civName);
-                // No timeline[] — renders as plain markdown instead
                 return new OracleResponse(answer, List.of(), civName, null);
             }
         }

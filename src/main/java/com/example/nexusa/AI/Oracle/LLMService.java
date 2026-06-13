@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -24,6 +27,8 @@ public class LLMService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // ── Non-streaming (used for rewriter, timeline intro, fast paths) ─────────
+
     public String generate(String systemPrompt, String userMessage,
                            List<Map<String, String>> history) {
         String result = callLLM(PRIMARY_MODEL, systemPrompt, userMessage, history);
@@ -39,12 +44,104 @@ public class LLMService {
         return callLLM(FALLBACK_MODEL, systemPrompt, userMessage, history);
     }
 
+    // ── Streaming (used for main research answers) ────────────────────────────
+
+    /**
+     * Streams OpenAI token chunks into the provided SseEmitter.
+     * Sends events named "token" for each chunk, "done" when complete,
+     * and "error" if something goes wrong.
+     * Returns the full assembled answer so OracleService can save it.
+     */
+    public String generateStreaming(String systemPrompt, String userMessage,
+                                    List<Map<String, String>> history,
+                                    SseEmitter emitter) {
+        try {
+            List<Map<String, Object>> messages = new ArrayList<>();
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+            for (Map<String, String> turn : history) {
+                messages.add(Map.of("role", turn.get("role"), "content", turn.get("content")));
+            }
+            messages.add(Map.of("role", "user", "content", userMessage));
+
+            Map<String, Object> body = Map.of(
+                    "model", PRIMARY_MODEL,
+                    "max_tokens", 4096,
+                    "stream", true,
+                    "messages", messages
+            );
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = client.send(
+                    request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() == 429) {
+                emitter.send(SseEmitter.event().name("error").data("RATE_LIMITED"));
+                emitter.complete();
+                return "RATE_LIMITED:";
+            }
+
+            if (response.statusCode() != 200) {
+                emitter.send(SseEmitter.event().name("error").data("API_ERROR"));
+                emitter.complete();
+                return "Error: API returned " + response.statusCode();
+            }
+
+            StringBuilder fullAnswer = new StringBuilder();
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(response.body()))) {
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data: ")) {
+                        String data = line.substring(6).trim();
+                        if (data.equals("[DONE]")) break;
+                        try {
+                            JsonNode root = objectMapper.readTree(data);
+                            JsonNode delta = root.path("choices").path(0).path("delta");
+                            String token = delta.path("content").asText("");
+                            if (!token.isEmpty()) {
+                                fullAnswer.append(token);
+                                // Escape for SSE — newlines must be encoded
+                                String encoded = token
+                                        .replace("\\", "\\\\")
+                                        .replace("\n", "\\n");
+                                emitter.send(SseEmitter.event().name("token").data(encoded));
+                            }
+                        } catch (Exception ignored) {
+                            // Malformed chunk — skip silently
+                        }
+                    }
+                }
+            }
+
+            emitter.send(SseEmitter.event().name("done").data(""));
+            emitter.complete();
+            return fullAnswer.toString();
+
+        } catch (Exception e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                emitter.complete();
+            } catch (Exception ignored) {}
+            return "Error generating response: " + e.getMessage();
+        }
+    }
+
+    // ── Internal non-streaming call ───────────────────────────────────────────
+
     private String callLLM(String model, String systemPrompt, String userMessage,
                            List<Map<String, String>> history) {
         try {
             HttpClient client = HttpClient.newHttpClient();
 
-            // Build message list: system → history → current user message
             List<Map<String, Object>> messages = new ArrayList<>();
             messages.add(Map.of("role", "system", "content", systemPrompt));
             for (Map<String, String> turn : history) {
@@ -65,7 +162,9 @@ public class LLMService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(
+                    request, HttpResponse.BodyHandlers.ofString());
+
             JsonNode root = objectMapper.readTree(response.body());
 
             if (response.statusCode() == 429) {
@@ -79,8 +178,7 @@ public class LLMService {
 
             JsonNode content = root.path("choices").path(0).path("message").path("content");
             if (content.isMissingNode() || content.asText().isBlank()) {
-                return "Error: The AI model returned an empty response. Raw: "
-                        + response.body().substring(0, Math.min(300, response.body().length()));
+                return "Error: The AI model returned an empty response.";
             }
             return content.asText();
 

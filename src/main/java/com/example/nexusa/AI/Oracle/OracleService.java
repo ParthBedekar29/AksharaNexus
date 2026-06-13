@@ -4,8 +4,10 @@ import com.example.nexusa.AI.Oracle.dto.OracleResponse;
 import com.example.nexusa.AI.Oracle.dto.QueryIntent;
 import com.example.nexusa.AI.Oracle.dto.RankedBlock;
 import com.example.nexusa.AI.Oracle.dto.TimelineEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,7 @@ public class OracleService {
     private final PromptInjectionDetector injectionDetector;
     private final QueryRewriter queryRewriter;
     private final TimelineService timelineService;
-
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private static final int MAX_QUERY_CHARS   = 800;
     private static final int MAX_CONTEXT_CHARS = 12_000;
 
@@ -513,5 +515,110 @@ public class OracleService {
                     .append(b.getFormattedContent()).append("\n\n");
         }
         return sb.toString();
+    }
+    // ── Streaming entry point ─────────────────────────────────────────────────
+
+    public void queryStreaming(String userQuery, String sessionId, SseEmitter emitter) {
+        try {
+            // Injection check
+            if (injectionDetector.isInjectionAttempt(userQuery)) {
+                emitter.send(SseEmitter.event().name("token")
+                        .data("I can't process requests that attempt to override system behavior."));
+                emitter.send(SseEmitter.event().name("done").data(""));
+                emitter.complete();
+                return;
+            }
+
+            if (userQuery == null || userQuery.isBlank()) {
+                emitter.send(SseEmitter.event().name("token").data("Please enter a question."));
+                emitter.send(SseEmitter.event().name("done").data(""));
+                emitter.complete();
+                return;
+            }
+
+            if (userQuery.length() > MAX_QUERY_CHARS) {
+                emitter.send(SseEmitter.event().name("token")
+                        .data("Your question is too long. Please keep it under " + MAX_QUERY_CHARS + " characters."));
+                emitter.send(SseEmitter.event().name("done").data(""));
+                emitter.complete();
+                return;
+            }
+
+            List<Map<String, String>> history = conversationStore.getHistory(sessionId);
+            String rewrittenQuery = queryRewriter.rewrite(userQuery, history);
+
+            QueryIntent intent = intentExtractor.extract(
+                    rewrittenQuery,
+                    conversationStore.getLastCivilization(sessionId)
+            );
+            QueryType type = classify(rewrittenQuery, intent);
+
+            // Non-research: stream the fast response
+            if (type == QueryType.CONVERSATIONAL
+                    || type == QueryType.META
+                    || type == QueryType.OFF_TOPIC) {
+                String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
+                // These are short — non-streaming is fine, just emit as single token
+                String answer = llmService.generateFast(system, sanitiseQuery(userQuery), history);
+                emitter.send(SseEmitter.event().name("token").data(answer
+                        .replace("\\", "\\\\").replace("\n", "\\n")));
+                emitter.send(SseEmitter.event().name("done").data(""));
+                emitter.complete();
+                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addAssistantTurn(sessionId, answer);
+                return;
+            }
+
+            // Timeline and comparative — not streamed, tell Flutter to use /query instead
+            // (Flutter handles this by checking response type before choosing endpoint)
+            if (type == QueryType.TIMELINE || type == QueryType.COMPARATIVE) {
+                emitter.send(SseEmitter.event().name("use_non_stream").data(""));
+                emitter.complete();
+                return;
+            }
+
+            // Research paths — full streaming
+            List<CentralSearchService.ParsedEntry> entries =
+                    searchService.fetchAndParseEntries(intent);
+
+            List<RankedBlock> topBlocks = blockRanker.rank(entries, intent).stream()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            String rawContext  = buildContext(topBlocks);
+            String context     = truncate(rawContext, MAX_CONTEXT_CHARS);
+            boolean hasContext = !context.isBlank();
+
+            String systemPrompt = SECURITY_RULES + "\n" + behaviorPromptFor(type, hasContext, userQuery);
+            String userMessage  = hasContext
+                    ? buildIsolatedUserMessage(context, userQuery)
+                    : "User Question:\n" + sanitiseQuery(userQuery);
+
+            // Send citations metadata before streaming starts so Flutter can show them
+            List<String> citations = getCitations(topBlocks);
+            String civMatched = intent.getCivilizationName();
+            String metaJson = objectMapper.writeValueAsString(Map.of(
+                    "citations", citations,
+                    "civilizationMatched", civMatched != null ? civMatched : ""
+            ));
+            emitter.send(SseEmitter.event().name("meta").data(metaJson));
+
+            // Stream the answer
+            String answer = llmService.generateStreaming(systemPrompt, userMessage, history, emitter);
+
+            if (!answer.startsWith("RATE_LIMITED:") && !answer.startsWith("Error:")) {
+                conversationStore.addUserTurn(sessionId, sanitiseQuery(userQuery));
+                conversationStore.addAssistantTurn(sessionId, answer);
+                if (civMatched != null && !civMatched.isBlank()) {
+                    conversationStore.setLastCivilization(sessionId, civMatched);
+                }
+            }
+
+        } catch (Exception e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                emitter.complete();
+            } catch (Exception ignored) {}
+        }
     }
 }

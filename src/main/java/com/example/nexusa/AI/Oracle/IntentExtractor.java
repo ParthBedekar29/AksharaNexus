@@ -3,6 +3,7 @@ package com.example.nexusa.AI.Oracle;
 import com.example.nexusa.AI.Oracle.dto.QueryIntent;
 import com.example.nexusa.Model.Central.CentralCivilization;
 import com.example.nexusa.Repository.Central.CentralCivilizationRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class IntentExtractor {
-
+    private List<CentralCivilization> allCivs;
     private final CentralCivilizationRepository civRepo;
     private static final double FUZZY_THRESHOLD = 0.75; // 0–1, higher = stricter
     private static final int    MAX_CANDIDATE_LEN = 40;  // ignore very long windows
@@ -43,7 +44,10 @@ public class IntentExtractor {
             "history", "historical", "ancient", "civilization", "civilisation"
             // NOTE: do NOT add "valley", "indus", "roman", "greek" — those are civ name parts
     );
-
+    @PostConstruct
+    public void init() {
+        allCivs = civRepo.findAll(); // load once
+    }
     public QueryIntent extract(String query) {
         QueryIntent intent = new QueryIntent();
         intent.setRawQuery(query);
@@ -87,8 +91,10 @@ public class IntentExtractor {
                 if (candidate.isBlank()) continue;
                 if (len == 1 && QUERY_FILLERS.contains(candidate.toLowerCase())) continue;
 
-                List<CentralCivilization> matches = civRepo.findByTitleContainingIgnoreCase(candidate);
-                if (!matches.isEmpty() && candidate.length() > bestCandidateLen) {
+                List<CentralCivilization> matches = allCivs.stream()
+                        .filter(c -> c.getTitle().equalsIgnoreCase(candidate)
+                                || c.getTitle().toLowerCase().contains(candidate.toLowerCase()))
+                        .toList();                if (!matches.isEmpty() && candidate.length() > bestCandidateLen) {
                     bestCandidateLen = candidate.length();
                     bestMatch = matches.getFirst().getTitle();
                 }
@@ -102,8 +108,10 @@ public class IntentExtractor {
         while (m.find()) {
             String candidate = m.group(1).trim();
             if (QUERY_FILLERS.contains(candidate.toLowerCase())) continue;
-            List<CentralCivilization> matches = civRepo.findByTitleContainingIgnoreCase(candidate);
-            if (!matches.isEmpty()) return matches.getFirst().getTitle();
+            List<CentralCivilization> matches = allCivs.stream()
+                    .filter(c -> c.getTitle().equalsIgnoreCase(candidate)
+                            || c.getTitle().toLowerCase().contains(candidate.toLowerCase()))
+                    .toList();            if (!matches.isEmpty()) return matches.getFirst().getTitle();
         }
 
         // Strategy 3: individual content words

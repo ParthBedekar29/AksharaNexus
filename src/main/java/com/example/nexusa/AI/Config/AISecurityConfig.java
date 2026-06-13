@@ -35,7 +35,7 @@ public class AISecurityConfig {
                         .requestMatchers("/ai/auth/**").permitAll()
                         .requestMatchers("/ai/account/**").hasRole("VIEWER")  // ← added
                         .requestMatchers("/oracle/**").hasRole("VIEWER")
-                        .requestMatchers("/ai/chat/**").hasRole("VIEWER")
+                        .requestMatchers("/ai/chat/**").hasRole("VIEWER").requestMatchers("/oracle/query/stream").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(aiJwtFilter, UsernamePasswordAuthenticationFilter.class);

@@ -7,8 +7,10 @@ import com.example.nexusa.AI.Oracle.dto.TimelineEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -506,13 +508,49 @@ public class OracleService {
 
     private String buildContext(List<RankedBlock> blocks) {
         StringBuilder sb = new StringBuilder();
+        Set<String> seenContent = new LinkedHashSet<>(); // ← add this
+
         for (RankedBlock b : blocks) {
+            // Normalize content for dedup check
+            String normalized = b.getFormattedContent().trim().toLowerCase();
+
+            // Skip if we've seen near-identical content already
+            if (seenContent.stream().anyMatch(seen -> similarity(seen, normalized) > 0.85)) {
+                continue;
+            }
+            seenContent.add(normalized);
+
             sb.append("[").append(b.getBlockType()).append("] ")
                     .append(b.getEntryTitle())
                     .append(" (").append(b.getVolumeTitle()).append(")\n")
                     .append(b.getFormattedContent()).append("\n\n");
         }
         return sb.toString();
+    }
+
+    // Simple similarity check — enough for near-duplicate detection
+    private double similarity(String a, String b) {
+        if (a.equals(b)) return 1.0;
+        int longer = Math.max(a.length(), b.length());
+        if (longer == 0) return 1.0;
+        int dist = levenshtein(a.substring(0, Math.min(200, a.length())),
+                b.substring(0, Math.min(200, b.length())));
+        return 1.0 - (double) dist / longer;
+    }
+
+    private int levenshtein(String a, String b) {
+        int m = a.length(), n = b.length();
+        int[] prev = new int[n + 1], curr = new int[n + 1];
+        for (int j = 0; j <= n; j++) prev[j] = j;
+        for (int i = 1; i <= m; i++) {
+            curr[0] = i;
+            for (int j = 1; j <= n; j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                curr[j] = Math.min(Math.min(curr[j-1]+1, prev[j]+1), prev[j-1]+cost);
+            }
+            int[] tmp = prev; prev = curr; curr = tmp;
+        }
+        return prev[n];
     }
 
 }

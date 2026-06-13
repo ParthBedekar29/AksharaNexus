@@ -25,6 +25,8 @@ public class CentralSearchService {
     public List<ParsedEntry> fetchAndParseEntries(QueryIntent intent) {
         List<CentralEntry> entries = fetchEntries(intent);
         return entries.stream()
+                .filter(e -> e.getVolume().getCivilization().getTitle()
+                        .equalsIgnoreCase(intent.getCivilizationName()))
                 .map(this::parseEntry)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());

@@ -21,23 +21,22 @@ public interface CentralEntryRepository extends JpaRepository<CentralEntry, UUID
     List<CentralEntry> findByVolume_VolumeIdOrderByStartYearAscEndYearAsc(UUID volumeId);
     // Oracle: fuzzy civ name match with optional time range filter
     @Query("""
-        SELECT e FROM CentralEntry e
-        WHERE LOWER(e.volume.civilization.title) LIKE LOWER(CONCAT('%', :civName, '%'))
-        AND (:startYear IS NULL OR e.endYear >= :startYear)
-        AND (:endYear IS NULL OR e.startYear <= :endYear)
-        ORDER BY e.volume.position, e.position
-        """)
+    SELECT e FROM CentralEntry e
+    WHERE LOWER(e.volume.civilization.title) = LOWER(:civName)
+    AND (:startYear IS NULL OR e.endYear >= :startYear)
+    AND (:endYear IS NULL OR e.startYear <= :endYear)
+    ORDER BY e.volume.position, e.position
+    """)
     List<CentralEntry> findByCivAndTimeRange(
             @Param("civName") String civName,
             @Param("startYear") Long startYear,
             @Param("endYear") Long endYear
     );
 
-    // Oracle: no time filter, just civ name
     @Query("""
-        SELECT e FROM CentralEntry e
-        WHERE LOWER(e.volume.civilization.title) LIKE LOWER(CONCAT('%', :civName, '%'))
-        ORDER BY e.volume.position, e.position
-        """)
+    SELECT e FROM CentralEntry e
+    WHERE LOWER(e.volume.civilization.title) = LOWER(:civName)
+    ORDER BY e.volume.position, e.position
+    """)
     List<CentralEntry> findByCivName(@Param("civName") String civName);
 }

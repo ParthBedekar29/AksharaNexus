@@ -21,7 +21,7 @@ public class LLMService {
 
     private static final String PRIMARY_MODEL  = "gpt-4o";
     private static final String FALLBACK_MODEL = "gpt-4o-mini";
-
+    private final HttpClient client = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public String generate(String systemPrompt, String userMessage,
@@ -42,7 +42,6 @@ public class LLMService {
     private String callLLM(String model, String systemPrompt, String userMessage,
                            List<Map<String, String>> history) {
         try {
-            HttpClient client = HttpClient.newHttpClient();
 
             // Build message list: system → history → current user message
             List<Map<String, Object>> messages = new ArrayList<>();

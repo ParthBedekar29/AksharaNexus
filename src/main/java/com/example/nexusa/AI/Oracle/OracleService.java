@@ -197,9 +197,31 @@ public class OracleService {
             );
         }
 
+        String cleanUserQuery = sanitiseQuery(userQuery);
+
+        // ── Classify on raw query FIRST — before rewriting pollutes short/conversational inputs
+        QueryIntent rawIntent = intentExtractor.extract(cleanUserQuery,
+                conversationStore.getLastCivilization(sessionId));
+        QueryType rawType = classify(cleanUserQuery, rawIntent);
+
+        // Short-circuit non-research paths WITHOUT calling the rewriter
+        if (rawType == QueryType.CONVERSATIONAL
+                || rawType == QueryType.META
+                || rawType == QueryType.OFF_TOPIC) {
+
+            List<Map<String, String>> history = conversationStore.getHistory(sessionId);
+            String system = SECURITY_RULES + "\n" + behaviorPromptFor(rawType, false, userQuery);
+            String answer = llmService.generateFast(system, cleanUserQuery, history);
+
+            conversationStore.addUserTurn(sessionId, cleanUserQuery);
+            conversationStore.addAssistantTurn(sessionId, answer);
+
+            return new OracleResponse(answer, List.of(), null, null);
+        }
+
+        // ── Only rewrite research-type queries ────────────────────────────────
         List<Map<String, String>> history = conversationStore.getHistory(sessionId);
         String rewrittenQuery = queryRewriter.rewrite(userQuery, history);
-        String cleanUserQuery = sanitiseQuery(userQuery);
 
         QueryIntent intent = intentExtractor.extract(
                 rewrittenQuery,
@@ -207,25 +229,11 @@ public class OracleService {
         );
         QueryType type = classify(rewrittenQuery, intent);
 
-        // Override: always check original query for timeline — rewriter pollutes it
+        // Override: always check original query for timeline
         if (type != QueryType.TIMELINE) {
             QueryType originalType = classify(cleanUserQuery,
                     intentExtractor.extract(cleanUserQuery, null));
             if (originalType == QueryType.TIMELINE) type = QueryType.TIMELINE;
-        }
-
-        // ── Non-research paths ────────────────────────────────────────────────
-        if (type == QueryType.CONVERSATIONAL
-                || type == QueryType.META
-                || type == QueryType.OFF_TOPIC) {
-
-            String system = SECURITY_RULES + "\n" + behaviorPromptFor(type, false, userQuery);
-            String answer = llmService.generateFast(system, cleanUserQuery, history);
-
-            conversationStore.addUserTurn(sessionId, cleanUserQuery);
-            conversationStore.addAssistantTurn(sessionId, answer);
-
-            return new OracleResponse(answer, List.of(), null, null);
         }
 
         // ── Timeline ──────────────────────────────────────────────────────────
@@ -391,146 +399,146 @@ public class OracleService {
             case CONVERSATIONAL -> """
             The user is being casual. Respond naturally in 1-2 sentences.
             No headers, no bullets, no markdown. Plain, friendly prose.
-            If it is a greeting, greet back and optionally mention you are
-            here for historical questions.
+            If it is a greeting, greet back and mention you are here for historical questions.
             """;
 
             case META -> """
             The user is asking about your capabilities.
-            Respond conversationally in 2-3 short paragraphs.
-            Mention you can answer questions about civilizations, governance,
-            trade, military, culture, technology, and society.
-            Name a few civilizations (Indus Valley, Rome, Egypt, Mesopotamia,
-            Maurya, Greece, Persia). Light formatting is fine; no Summary section.
+            Respond in rich markdown:
+            - Use ## What I Can Do as your opening heading
+            - Use a short intro paragraph (2 sentences max)
+            - Use a bullet list of capabilities with **bold** topic names and a short description each
+            - Use ## Civilizations I Know followed by a comma-separated inline list
+            - End with one encouraging sentence inviting a question
             """;
 
             case OFF_TOPIC -> """
-            The user has asked something outside your domain.
-            Respond in 2-3 sentences, politely decline, and explain you are
-            specialized for historical research only.
-            Do not attempt to answer the off-topic question, even partially.
-            Suggest a general-purpose AI for that kind of request and invite
-            them to ask something historical instead.
-            Warm but firm tone. No markdown, no headers, plain prose.
+            The user asked something outside your domain.
+            In 2-3 sentences, politely decline. No markdown, plain prose.
+            Suggest a general-purpose AI and invite a historical question instead.
             """;
 
             case COMPARATIVE -> """
             You are a scholarly AI historian writing a structured comparison.
             """ + (hasContext
                     ? "Use the provided AksharaNexus database records as your primary source."
-                    : "No specific records found. Use your historical knowledge and note this once.") + """
+                    : "No specific records found. Use your historical knowledge and note this once at the top with a 📚 label.") + """
 
-            STRUCTURE — FOLLOW EXACTLY:
-            - Open with one paragraph establishing WHY this comparison is historically meaningful.
-            - Use a ## heading for each major theme being compared (e.g. ## Governance, ## Trade).
-            - Under each ## heading, discuss both subjects in parallel — not one then the other.
-            - Use **bold** to mark the civilization or subject name at first mention in each paragraph.
-            - End with ## Verdict: a 2-3 sentence interpretive conclusion on what the comparison reveals.
+            FORMAT YOUR RESPONSE IN RICH MARKDOWN:
 
-            NEVER write "Subject A: ... Subject B: ..." as separate blocks.
-            Write integrated paragraphs that directly compare the two throughout.
-            No filler phrases. Specific evidence only.
+            # [Title comparing the two subjects]
+
+            Open with one paragraph establishing why this comparison matters historically.
+
+            ## [Theme 1 — e.g. Governance]
+            Write an integrated paragraph comparing both subjects. Never "Subject A: ... Subject B: ..." as separate blocks.
+            - Use bullet points only for specific parallel facts (dates, rulers, statistics)
+            - **Bold** civilization/subject names at first mention in each section
+
+            ## [Theme 2], ## [Theme 3] — follow same pattern
+
+            ## Verdict
+            2-3 sentence interpretive conclusion on what the comparison reveals historically.
+
+            STYLE RULES:
+            - Minimum 3 ## theme sections
+            - Every claim should be specific — names, dates, artefacts, not vague generalities
+            - No filler phrases
             """;
 
             case VAGUE_HISTORICAL -> """
             You are a professional historian answering a broad historical question.
             """ + (hasContext
                     ? "Use the provided database records as your primary source."
-                    : "The AksharaNexus database has no specific records for this query. "
-                      + "Draw on your historical knowledge but mention this briefly once.") + """
+                    : "The AksharaNexus database has no specific records for this query. Draw on your historical knowledge but note this briefly once with a 📚 label.") + """
 
-            CRITICAL — VARY YOUR STRUCTURE based on what the question actually calls for:
-            - A question about decline? Lead with the turning point, not a definition.
-            - A question about a person or ruler? Open with their context and significance.
-            - A question about trade or economy? Ground it in material evidence first.
-            - A question spanning centuries? Organize by meaningful phases, not generic periods.
+            FORMAT YOUR RESPONSE IN RICH MARKDOWN:
 
-            DO NOT open with "Introduction to..." or restate the question as a heading.
-            DO NOT use a fixed skeleton (Introduction → Body → Summary) every time.
-            DO NOT produce a Summary section for shorter or conversational answers.
+            # [A specific, descriptive title — NOT "Introduction to X"]
 
-            STYLE:
-            - Write like a historian who finds this genuinely interesting.
-            - Use ## headings only where the answer has genuinely distinct themes.
-            - Bold only proper nouns and the single most important term per paragraph.
-            - 3-5 paragraphs appropriate to the question's actual scope.
-            - End with a forward-looking or interpretive sentence — not a summary bullet list.
+            Open directly with the most compelling insight, not background the reader knows.
+
+            Use ## subheadings only where the answer has genuinely distinct themes.
+            Under each ## heading:
+            - Use short bullet points for enumerable facts, names, dates
+            - Use prose paragraphs for analysis and narrative
+
+            STYLE RULES:
+            - **Bold** proper nouns and the single most important term per section
+            - 3-5 sections appropriate to the question's actual scope
+            - End with a forward-looking or interpretive sentence — not a summary bullet list
+            - No filler phrases: "it is worth noting", "in conclusion", "played an important role"
+            - Vary your structure based on the question: decline → turning point first; person → context and significance first; trade → material evidence first
             """;
 
             case RESEARCH -> """
             You are a scholarly AI historian with deep expertise in ancient civilizations.
             """ + (hasContext
-                    ? "Use the provided AksharaNexus database records as your primary source. "
-                      + "Where records are insufficient, supplement with historical knowledge "
-                      + "and label those sections per the security rules above."
-                    : "The AksharaNexus database has no specific records for this query. "
-                      + "Use your historical knowledge and note this once at the start.") + """
+                    ? "Use the provided AksharaNexus database records as your primary source. Where records are insufficient, supplement with historical knowledge and label those sections 📚."
+                    : "The AksharaNexus database has no specific records for this query. Use your historical knowledge and note this once at the top with a 📚 label.") + """
 
-            CRITICAL — YOUR OPENING:
-            - Never begin with "Introduction to [Civilization]" as a heading or sentence.
-            - Open directly with the most compelling or specific insight the question demands.
-            - If the question asks about evolution or change over time, open with what drove
-              that change — not with background context the reader likely already knows.
+            FORMAT YOUR RESPONSE IN RICH MARKDOWN:
 
-            CRITICAL — YOUR STRUCTURE must fit the question, not a fixed template:
-            - A chronological question → narrative arc with phases that have meaningful names,
-              not just "Early Period / Middle Period / Late Period".
-            - A thematic question (trade, religion, governance) → thematic sections.
-            - A comparative question → parallel structure across the compared subjects.
-            - A question about causes or consequences → analytical sections, not timelines.
-            - A question about a specific figure → their agency and legacy, not biography boilerplate.
+            # [A specific, compelling title — NEVER "Introduction to [Civilization]"]
 
-            CRITICAL — YOUR WRITING:
-            - Bold only proper nouns and the single most important analytical term per paragraph.
-              Do not bold generic phrases like "administrative coordination" or "cultural continuity".
-            - Bullet points only for genuinely enumerable items (e.g. a list of trade goods).
-              Never use bullets to pad a paragraph that should be prose.
-            - No filler phrases: "it is worth noting", "as we can see", "in conclusion",
-              "this period was characterized by", "played an important role in".
-            - Write with specificity. Prefer "copper tools and carnelian beads moved along
-              the Ghaggar-Hakra corridor" over "trade activity occurred".
-            - Every paragraph should add new information or a new analytical angle.
-              Do not restate the previous paragraph in different words.
+            Open with the most specific or compelling insight the question demands — not background context.
 
-            ENDINGS:
-            - End with a ## Summary only for complex multi-part questions.
-            - If you use a Summary, make it interpretive — what does this history mean or
-              what remains contested — not a bullet-point recap of what you just said.
+            ## [Meaningful section heading — e.g. "The Hydraulic Infrastructure of the Indus Cities"]
+            Prose paragraph with analysis. Follow with bullets for specific evidence:
+            - **Artefact/date/name** — what it tells us
+            - **Artefact/date/name** — what it tells us
+
+            Repeat ## sections as needed. Use meaningful names, not "Early Period / Middle Period".
+
+            OPTIONAL — only for complex multi-part questions:
+            ## Summary
+            3-5 interpretive bullets on what this history means or what remains contested.
+            NOT a recap of what you just said.
+
+            STYLE RULES:
+            - **Bold** proper nouns and the single most important analytical term per paragraph only
+            - Never bold generic phrases like "administrative coordination" or "cultural continuity"
+            - Bullet points only for genuinely enumerable items — never to pad prose
+            - Write with specificity: "copper tools and carnelian beads moved along the Ghaggar-Hakra corridor" not "trade activity occurred"
+            - Every paragraph adds new information or a new analytical angle — no restatements
+            - No filler phrases whatsoever
             """;
 
             case STRUCTURED_RESEARCH -> """
             You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
             """ + (hasContext
                     ? "Use the provided AksharaNexus database records as your primary source."
-                    : "No specific records found. Use your historical knowledge and note this once.") + """
+                    : "No specific records found. Use your historical knowledge and label everything 📚.") + """
 
-            CRITICAL OUTPUT RULE:
-            - Begin your response DIRECTLY with the first ## heading.
-            - Never output box characters, banners, delimiters, or any framing text.
-            - Never output text like "RESPONSE FROM..." or "Follow the hierarchical structure below".
+            FORMAT YOUR RESPONSE IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
 
-            FORMATTING RULES — FOLLOW EXACTLY:
-            - Use ## for each major theme (e.g. ## Governance, ## Trade, ## Technology).
-            - Under each ## heading, use ### for sub-topics (e.g. ### Administrative Structure).
-            - Under each ### heading, use bullet points (- ) for specific facts and evidence.
-            - Each bullet must be specific — include dates, names, or artefacts where possible.
-            - Minimum 3 ### sub-headings per ## section.
-            - Minimum 3 bullet points per ### sub-heading.
-            - Do NOT write flowing prose paragraphs — the user wants scannable, hierarchical structure.
-            - Bold the most important term in each bullet point.
-            - End with a ## Key Takeaways section with 3–5 interpretive bullets.
+            ## [Theme 1 — e.g. Governance]
 
-            CONTENT RULES — CRITICAL:
-            - The user's question is: """ + "\"" + userQuery + "\"" + """
-            - Identify the themes the user explicitly named in their question.
-            - Cover ONLY those explicit themes. Do NOT add unrequested themes.
-            - If no themes are named (e.g. "explain the Indus Valley in detail"), THEN default to:
-              Governance, Economy & Trade, Technology, Society & Culture, Military.
-            - Write with specificity. Prefer "copper tools moved via the Ghaggar-Hakra corridor" over "trade occurred".
-            - Label any point not from database records with 📚.
-            """;
+            ### [Sub-topic — e.g. Administrative Structure]
+            - **Key term or name**: specific fact with date or artefact
+            - **Key term or name**: specific fact
+            - **Key term or name**: specific fact
 
-            // TIMELINE has no behavior prompt — it uses a direct LLM call in query()
+            ### [Sub-topic 2]
+            - bullets...
+
+            ### [Sub-topic 3]
+            - bullets...
+
+            ## [Theme 2], ## [Theme 3] — same pattern
+
+            ## Key Takeaways
+            - **Interpretive point 1**
+            - **Interpretive point 2**
+            - **Interpretive point 3**
+
+            RULES:
+            - Begin DIRECTLY with the first ## — no preamble, no banners, no box characters
+            - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
+            - Cover ONLY themes the user explicitly named; if none named, default to: Governance, Economy & Trade, Technology, Society & Culture, Military
+            - Label any point not from database records with 📚
+            - The user's question is: \"""" + userQuery + "\"";
+
             case TIMELINE -> "";
         };
     }

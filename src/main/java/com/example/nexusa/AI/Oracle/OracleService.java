@@ -510,7 +510,7 @@ public class OracleService {
                     ? "Use the provided AksharaNexus database records as your primary source."
                     : "No specific records found. Use your historical knowledge and label everything 📚.") + """
 
-            FORMAT YOUR RESPONSE IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
+            FORMAT YOUR RESPONSE IN RICH MARKDOWN USING EMOJIS ICONS AND VISUAL HELPERS WHEREVER POSSIBLE IF THE USER ASKS FOR DIAGRAMS PROVIDE DIAGRAMS IN ASCII BLOCKS— START DIRECTLY WITH THE FIRST ## HEADING:
 
             ## [Theme 1 — e.g. Governance]
 

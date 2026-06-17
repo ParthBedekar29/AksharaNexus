@@ -19,8 +19,8 @@ public class LLMService {
     @Value("${openai.api.key}")
     private String apiKey;
 
-    private static final String PRIMARY_MODEL  = "gpt-4o";
-    private static final String FALLBACK_MODEL = "gpt-4o-mini";
+    private static final String PRIMARY_MODEL  = "llama-3.3-70b-versatile";
+    private static final String FALLBACK_MODEL = "llama-3.1-8b-instant";
     private final HttpClient client = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -58,7 +58,7 @@ public class LLMService {
             );
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.openai.com/v1/chat/completions"))
+                    .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
                     .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))

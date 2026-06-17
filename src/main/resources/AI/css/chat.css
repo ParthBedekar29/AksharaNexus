@@ -776,8 +776,10 @@ body {
 .diagram-wrap,
 .timeline-wrap {
     margin-top: 20px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
 .diagram-header {
     display: flex;
     align-items: center;

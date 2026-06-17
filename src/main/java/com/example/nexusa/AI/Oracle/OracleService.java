@@ -119,7 +119,9 @@ public class OracleService {
             "in detail", "explain in detail", "explain aspects",
             "governance", "trade and", "technology and", "aspects such as",
             "with aspects", "start to finish", "comprehensive", "breakdown",
-            "elaborate on", "cover all", "all aspects", "deep dive"
+            "elaborate on", "cover all", "all aspects", "deep dive",
+            "generate a diagram", "show me a diagram", "detailed diagram",
+            "diagram for", "diagram of", "draw a diagram"
     );
 
     private static final java.util.regex.Pattern DIAGRAM_BLOCK_PATTERN =
@@ -393,8 +395,9 @@ public class OracleService {
             List<DiagramData> diagrams = extracted.getValue();
 
             conversationStore.addUserTurn(sessionId, cleanUserQuery);
-            return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
-                    intent.getCivilizationName(), null, diagrams);   }
+            return new OracleResponse(answer,
+                    hasContext ? getCitations(topBlocks, intent.getCivilizationName()) : List.of(),
+                    intent.getCivilizationName(), null, diagrams);  }
 
         // ── Research / vague-historical ───────────────────────────────────────
         List<CentralSearchService.ParsedEntry> entries = searchService.fetchAndParseEntries(intent);
@@ -434,7 +437,8 @@ public class OracleService {
         if (intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank()) {
             conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());
         }
-        return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
+        return new OracleResponse(answer,
+                hasContext ? getCitations(topBlocks, intent.getCivilizationName()) : List.of(),
                 intent.getCivilizationName(), null, diagrams);
     }
 
@@ -567,37 +571,39 @@ public class OracleService {
 
             case STRUCTURED_RESEARCH -> """
     You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
-            """ + (hasContext
-                            ? "Use the provided AksharaNexus database records as your primary source."
-                            : "No specific records found. Use your historical knowledge and label everything 📚.") + """
-        
-            Detect if the user is asking primarily for a DIAGRAM (phrases like "generate a diagram",
-            "show me a diagram", "detailed diagram"). If so:
-            - Skip all prose sections
-            - Output ONLY multiple ```diagram blocks, one per major theme
-            - Themes: Governance, Economy & Trade, Technology, Society & Culture, Military
-            - Each diagram should be a hierarchy or process type with 6-10 nodes and meaningful edges
-            - Add a single short paragraph at the end summarising what the diagrams cover
-        
-            Otherwise, FORMAT IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
-            ## Theme name
-            ### Sub-topic name
-            - **Key term**: specific fact with date or artefact
-            ### Sub-topic name 2
-            - bullets...
-            ## Theme 2, ## Theme 3 — same pattern
-            ## Key Takeaways
-            - **Point 1**
-            - **Point 2**
-        
-            RULES:
-            - Never output literal bracket characters like [Theme 1] or [Section]
-            - Begin directly with the first ## — no preamble, no banners
-            - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
-            - Cover ONLY themes the user explicitly named; if none, default to:
-              Governance, Economy & Trade, Technology, Society & Culture, Military
-            - Label any point not from database records with 📚
-            - The user's question is: \"""" + userQuery + "\"";
+    """ + (hasContext
+                    ? "Use the provided AksharaNexus database records as your primary source."
+                    : "No specific records found. Use your historical knowledge and label everything 📚.") + """
+
+    Detect if the user is asking primarily for a DIAGRAM (phrases like "generate a diagram",
+    "show me a diagram", "detailed diagram", "diagram for", "diagram of"). If so:
+    - Output DIAGRAMS FIRST, before any prose
+    - Produce one ```diagram block per major theme — minimum 5 themes:
+      Governance, Military, Economy & Trade, Society & Culture, Technology & Engineering
+    - Each diagram must be type "hierarchy" with a descriptive title and 8-12 nodes with meaningful edges
+    - After ALL diagram blocks, write a single short paragraph (2-3 sentences) summarising
+      what the diagrams collectively cover
+    - No prose before the first diagram block under any circumstances
+
+    Otherwise, FORMAT IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
+    ## Theme name
+    ### Sub-topic name
+    - **Key term**: specific fact with date or artefact
+    ### Sub-topic name 2
+    - bullets...
+    ## Theme 2, ## Theme 3 — same pattern
+    ## Key Takeaways
+    - **Point 1**
+    - **Point 2**
+
+    RULES:
+    - Never output literal bracket characters like [Theme 1] or [Section]
+    - Begin directly with diagrams or first ## — no preamble, no banners
+    - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
+    - Cover ONLY themes the user explicitly named; if none, default to:
+      Governance, Economy & Trade, Technology, Society & Culture, Military
+    - Label any point not from database records with 📚
+    - The user's question is: \"""" + userQuery + "\"";
 
             case TIMELINE -> "";
         };
@@ -614,9 +620,14 @@ public class OracleService {
         return text.substring(0, maxChars)
                 + "\n\n[RECORDS TRUNCATED — context limit reached]";
     }
-
-    private List<String> getCitations(List<RankedBlock> blocks) {
+    private List<String> getCitations(List<RankedBlock> blocks, String civName) {
+        if (civName == null || civName.isBlank()) return List.of();
+        String firstWord = civName.toLowerCase().split("\\s+")[0];
         return blocks.stream()
+                .filter(b -> b.getEntryTitle() != null &&
+                        b.getEntryTitle().toLowerCase().contains(firstWord)
+                        || b.getVolumeTitle() != null &&
+                        b.getVolumeTitle().toLowerCase().contains(firstWord))
                 .flatMap(b -> b.getCitationSummaries().stream())
                 .distinct()
                 .limit(5)

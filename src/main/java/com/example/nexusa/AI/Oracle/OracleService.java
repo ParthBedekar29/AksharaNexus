@@ -397,8 +397,8 @@ public class OracleService {
 
             conversationStore.addUserTurn(sessionId, cleanUserQuery);
             conversationStore.addAssistantTurn(sessionId, answer);
-            return new OracleResponse(answer, getCitations(topBlocks), null, null, diagram);
-        }
+            return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
+                    intent.getCivilizationName(), null, diagram);        }
 
         // ── Research / vague-historical ───────────────────────────────────────
         List<CentralSearchService.ParsedEntry> entries = searchService.fetchAndParseEntries(intent);
@@ -438,8 +438,7 @@ public class OracleService {
         if (intent.getCivilizationName() != null && !intent.getCivilizationName().isBlank()) {
             conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());
         }
-
-        return new OracleResponse(answer, getCitations(topBlocks),
+        return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
                 intent.getCivilizationName(), null, diagram);
     }
 

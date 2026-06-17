@@ -128,19 +128,17 @@ public class OracleService {
                     java.util.regex.Pattern.DOTALL);
 
     private static final String DIAGRAM_INSTRUCTION = """
-        DIAGRAMS: If a diagram, flowchart, hierarchy, or process would clarify your
-        answer (e.g. governance structure, succession order, trade route flow,
-        military campaign stages), include exactly ONE fenced block like this,
-        placed after the relevant section:
-        ```diagram
-        {"type": "process", "title": "...", "nodes": [{"id": "n1", "label": "...", "description": "..."}], "edges": [{"from": "n1", "to": "n2", "label": "..."}]}
-        ```
-        Use "type": "hierarchy" for org/family/taxonomy trees, "process" for
-        sequential or branching flows, "comparison" for side-by-side structural
-        comparison. Only include this block if a diagram genuinely adds clarity —
-        do not force one into every answer. Never put diagram JSON anywhere except
-        inside the fenced ```diagram block.
-        """;
+    DIAGRAMS: If a diagram, flowchart, hierarchy, or process would clarify your
+    answer, include fenced diagram blocks like this after relevant sections:
+```diagram
+    {"type": "process", "title": "...", "nodes": [{"id": "n1", "label": "...", "description": "..."}], "edges": [{"from": "n1", "to": "n2", "label": "..."}]}
+```
+    Use "type": "hierarchy" for org/family/taxonomy trees, "process" for
+    sequential or branching flows, "comparison" for side-by-side structural
+    comparison. For explicit diagram requests ("generate a diagram", "show me
+    a diagram"), produce MULTIPLE diagram blocks — one per major theme — instead
+    of prose. Never put diagram JSON anywhere except inside the fenced block.
+    """;
 
     // ── Bug fix 1: Map.entry() rejects null values — use AbstractMap.SimpleEntry instead ──
 
@@ -390,15 +388,13 @@ public class OracleService {
                         List.of(), null, null, null);
             }
 
-            // Bug fix 4: actually call extractDiagram and propagate the result
-            Map.Entry<String, DiagramData> extracted = extractDiagram(rawAnswer);
-            String answer      = extracted.getKey();
-            DiagramData diagram = extracted.getValue();
+            Map.Entry<String, List<DiagramData>> extracted = extractAllDiagrams(rawAnswer);
+            String answer           = extracted.getKey();
+            List<DiagramData> diagrams = extracted.getValue();
 
             conversationStore.addUserTurn(sessionId, cleanUserQuery);
-            conversationStore.addAssistantTurn(sessionId, answer);
             return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
-                    intent.getCivilizationName(), null, diagram);        }
+                    intent.getCivilizationName(), null, diagrams);   }
 
         // ── Research / vague-historical ───────────────────────────────────────
         List<CentralSearchService.ParsedEntry> entries = searchService.fetchAndParseEntries(intent);
@@ -428,9 +424,9 @@ public class OracleService {
         }
 
         // Bug fix 4 (continued): extract diagram from every research answer
-        Map.Entry<String, DiagramData> extracted = extractDiagram(rawAnswer);
-        String answer       = extracted.getKey();
-        DiagramData diagram = extracted.getValue();
+        Map.Entry<String, List<DiagramData>> extracted = extractAllDiagrams(rawAnswer);
+        String answer           = extracted.getKey();
+        List<DiagramData> diagrams = extracted.getValue();
 
         conversationStore.addUserTurn(sessionId, cleanUserQuery);
         conversationStore.addAssistantTurn(sessionId, answer);
@@ -439,7 +435,7 @@ public class OracleService {
             conversationStore.setLastCivilization(sessionId, intent.getCivilizationName());
         }
         return new OracleResponse(answer, hasContext ? getCitations(topBlocks) : List.of(),
-                intent.getCivilizationName(), null, diagram);
+                intent.getCivilizationName(), null, diagrams);
     }
 
     // ── Context isolation wrapper ─────────────────────────────────────────────
@@ -570,31 +566,38 @@ public class OracleService {
                     """;
 
             case STRUCTURED_RESEARCH -> """
-                    You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
-                    """ + (hasContext
-                    ? "Use the provided AksharaNexus database records as your primary source."
-                    : "No specific records found. Use your historical knowledge and label everything 📚.") + """
-                    FORMAT YOUR RESPONSE IN RICH MARKDOWN USING EMOJIS, ICONS AND VISUAL HELPERS WHEREVER POSSIBLE — START DIRECTLY WITH THE FIRST ## HEADING:
-                    ## [Theme 1 — e.g. Governance]
-                    ### [Sub-topic — e.g. Administrative Structure]
-                    - **Key term or name**: specific fact with date or artefact
-                    - **Key term or name**: specific fact
-                    - **Key term or name**: specific fact
-                    ### [Sub-topic 2]
-                    - bullets...
-                    ### [Sub-topic 3]
-                    - bullets...
-                    ## [Theme 2], ## [Theme 3] — same pattern
-                    ## Key Takeaways
-                    - **Interpretive point 1**
-                    - **Interpretive point 2**
-                    - **Interpretive point 3**
-                    RULES:
-                    - Begin DIRECTLY with the first ## — no preamble, no banners, no box characters
-                    - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
-                    - Cover ONLY themes the user explicitly named; if none named, default to: Governance, Economy & Trade, Technology, Society & Culture, Military
-                    - Label any point not from database records with 📚
-                    - The user's question is: \"""" + userQuery + "\"";
+    You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
+            """ + (hasContext
+                            ? "Use the provided AksharaNexus database records as your primary source."
+                            : "No specific records found. Use your historical knowledge and label everything 📚.") + """
+        
+            Detect if the user is asking primarily for a DIAGRAM (phrases like "generate a diagram",
+            "show me a diagram", "detailed diagram"). If so:
+            - Skip all prose sections
+            - Output ONLY multiple ```diagram blocks, one per major theme
+            - Themes: Governance, Economy & Trade, Technology, Society & Culture, Military
+            - Each diagram should be a hierarchy or process type with 6-10 nodes and meaningful edges
+            - Add a single short paragraph at the end summarising what the diagrams cover
+        
+            Otherwise, FORMAT IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
+            ## Theme name
+            ### Sub-topic name
+            - **Key term**: specific fact with date or artefact
+            ### Sub-topic name 2
+            - bullets...
+            ## Theme 2, ## Theme 3 — same pattern
+            ## Key Takeaways
+            - **Point 1**
+            - **Point 2**
+        
+            RULES:
+            - Never output literal bracket characters like [Theme 1] or [Section]
+            - Begin directly with the first ## — no preamble, no banners
+            - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
+            - Cover ONLY themes the user explicitly named; if none, default to:
+              Governance, Economy & Trade, Technology, Society & Culture, Military
+            - Label any point not from database records with 📚
+            - The user's question is: \"""" + userQuery + "\"";
 
             case TIMELINE -> "";
         };
@@ -652,5 +655,18 @@ public class OracleService {
                 .filter(w -> !w.isBlank())
                 .map(w -> Character.toUpperCase(w.charAt(0)) + w.substring(1).toLowerCase())
                 .collect(Collectors.joining(" "));
+    }
+    private Map.Entry<String, List<DiagramData>> extractAllDiagrams(String answer) {
+        var matcher = DIAGRAM_BLOCK_PATTERN.matcher(answer);
+        List<DiagramData> diagrams = new ArrayList<>();
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        while (matcher.find()) {
+            try {
+                diagrams.add(mapper.readValue(matcher.group(1).trim(), DiagramData.class));
+            } catch (Exception ignored) {}
+        }
+        String cleaned = matcher.replaceAll("").trim();
+        return new AbstractMap.SimpleEntry<>(cleaned, diagrams);
     }
 }

@@ -11,5 +11,6 @@ public class OracleResponse {
     private List<String> sourceCitations;
     private String civilizationMatched;
     private List<TimelineEvent> timeline;   // null for non-timeline queries
-    private DiagramData diagram;            // null when no diagram was produced
+    // OracleResponse.java
+    private List<DiagramData> diagrams;  // rename from diagram, always a list
 }

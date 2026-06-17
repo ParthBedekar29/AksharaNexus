@@ -95,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentSessionId = sessionId;
         clearMessages();
 
-        // Mark active in sidebar
         document.querySelectorAll('.session-item').forEach(el => {
             el.classList.toggle('active', el.dataset.id === sessionId);
         });
@@ -165,35 +164,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const text = textarea.value.trim();
         if (!text || sendBtn.disabled) return;
 
-        // Create session on first message
+        // Everything visible happens synchronously before any await
+        setSending(true);
+        textarea.value = '';
+        textarea.style.height = 'auto';
+        appendUserMessage(text);
+        const typingId = appendTyping();
+
         const isNewSession = !currentSessionId;
         if (isNewSession) {
             try {
                 const session = await api.createSession(text);
                 currentSessionId = session.id;
-                // Add to top of sidebar immediately
                 prependSession(session);
-            } catch (e) {
-                // Continue without saving if it fails
-            }
+            } catch (e) { /* continue without saving */ }
         }
-
-        appendUserMessage(text);
-        textarea.value = '';
-        textarea.style.height = 'auto';
-        setSending(true);
-
-        const typingId = appendTyping();
 
         try {
             const data = await api.query(text);
             removeTyping(typingId);
             appendOracleMessage(data);
 
-            // Save message pair in background — don't await, don't block UI
             if (currentSessionId) {
                 api.saveMessages(currentSessionId, text, data.answer).catch(() => {});
-                // Update updatedAt in sidebar
                 bumpSession(currentSessionId);
             }
         } catch (err) {
@@ -207,10 +200,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             setSending(false);
         }
     }
-
     // ── Sidebar helpers ───────────────────────────────────────────────────────
     function prependSession(session) {
-        // Remove empty state if present
         const empty = sessionsEl.querySelector('.sidebar-empty');
         if (empty) empty.remove();
 
@@ -235,7 +226,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await deleteSession(session.id, item);
         });
 
-        // Deactivate others
         document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
         sessionsEl.prepend(item);
     }
@@ -263,14 +253,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             ? `<span class="civ-tag">${escHtml(data.civilizationMatched)}</span>`
             : '';
 
-        const citations = (data.sourceCitations || [])
-            .map(c => `<div class="citation-item">${escHtml(c)}</div>`)
-            .join('');
-
-        const citationsBlock = citations
+        // Citation fix: only render if array is non-empty
+        const citations = (data.sourceCitations || []);
+        const citationsBlock = citations.length
             ? `<div class="msg-citations">
                  <div class="citations-label">Sources</div>
-                 ${citations}
+                 ${citations.map(c => `<div class="citation-item">${escHtml(c)}</div>`).join('')}
                </div>`
             : '';
 
@@ -286,9 +274,244 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>`;
 
         messagesEl.appendChild(div);
+
+        // Diagrams
+        (data.diagrams || []).forEach(diagram => {
+            if (diagram && diagram.nodes && diagram.nodes.length) {
+                const inner = div.querySelector('.msg-oracle-inner');
+                inner.appendChild(buildDiagram(diagram));
+            }
+        });
+
+        // Timeline
+        if (data.timeline && data.timeline.length) {
+            const inner = div.querySelector('.msg-oracle-inner');
+            inner.appendChild(buildTimeline(data.timeline));
+        }
+
         scrollToBottom();
     }
 
+    // ── Diagram builder ───────────────────────────────────────────────────────
+    function buildDiagram(diagram) {
+        const wrap = document.createElement('div');
+        wrap.className = 'diagram-wrap';
+
+        const header = document.createElement('div');
+        header.className = 'diagram-header';
+        header.innerHTML = `<span class="diagram-accent-bar"></span>
+            <span class="diagram-title">${escHtml((diagram.title || 'DIAGRAM').toUpperCase())}</span>`;
+        wrap.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'diagram-body';
+
+        if (diagram.type === 'hierarchy') {
+            body.appendChild(buildHierarchyDiagram(diagram));
+        } else if (diagram.type === 'comparison') {
+            body.appendChild(buildComparisonDiagram(diagram));
+        } else {
+            body.appendChild(buildProcessDiagram(diagram));
+        }
+
+        wrap.appendChild(body);
+        return wrap;
+    }
+
+    function buildProcessDiagram(diagram) {
+        const nodes = diagram.nodes || [];
+        const edges = diagram.edges || [];
+        const frag  = document.createDocumentFragment();
+
+        // Build edge label map
+        const edgeLabels = {};
+        edges.forEach(e => { edgeLabels[`${e.from}→${e.to}`] = e.label || ''; });
+
+        // Topological order
+        const ordered = topoSort(nodes, edges);
+
+        ordered.forEach((node, i) => {
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'process-node';
+            nodeEl.innerHTML = `
+                <div class="process-index">${i + 1}</div>
+                <div class="process-text">
+                    <div class="process-label">${escHtml(node.label)}</div>
+                    ${node.description ? `<div class="process-desc">${escHtml(node.description)}</div>` : ''}
+                </div>`;
+            frag.appendChild(nodeEl);
+
+            if (i < ordered.length - 1) {
+                const connEl = document.createElement('div');
+                connEl.className = 'process-connector';
+                const edgeKey = `${ordered[i].id}→${ordered[i + 1].id}`;
+                const edgeLabel = edgeLabels[edgeKey] || '';
+                connEl.innerHTML = `
+                    <div class="process-connector-line"></div>
+                    ${edgeLabel ? `<span class="process-edge-label">${escHtml(edgeLabel)}</span>` : ''}`;
+                frag.appendChild(connEl);
+            }
+        });
+
+        const wrap = document.createElement('div');
+        wrap.className = 'process-diagram';
+        wrap.appendChild(frag);
+        return wrap;
+    }
+
+    function buildHierarchyDiagram(diagram) {
+        const nodes   = diagram.nodes || [];
+        const edges   = diagram.edges || [];
+        const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+        const children = Object.fromEntries(nodes.map(n => [n.id, []]));
+        const hasParent = Object.fromEntries(nodes.map(n => [n.id, false]));
+        edges.forEach(e => {
+            if (children[e.from]) children[e.from].push(e.to);
+            hasParent[e.to] = true;
+        });
+        const roots = nodes.filter(n => !hasParent[n.id]);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'hierarchy-diagram';
+        roots.forEach(r => wrap.appendChild(buildHierarchyNode(r, children, nodeMap, 0)));
+        return wrap;
+    }
+
+    function buildHierarchyNode(node, children, nodeMap, depth) {
+        const childIds  = children[node.id] || [];
+        const hasChildren = childIds.length > 0;
+
+        const container = document.createElement('div');
+        container.className = 'hierarchy-node-wrap';
+
+        const nodeEl = document.createElement('div');
+        nodeEl.className = 'hierarchy-node' + (depth === 0 ? ' hierarchy-root' : '');
+        nodeEl.style.marginLeft = (depth * 20) + 'px';
+        nodeEl.innerHTML = `
+            <div class="hierarchy-node-inner">
+                ${hasChildren ? `<span class="hierarchy-chevron expanded">▾</span>` : `<span class="hierarchy-dot"></span>`}
+                <div class="hierarchy-text">
+                    <div class="hierarchy-label">${escHtml(node.label)}</div>
+                    ${node.description ? `<div class="hierarchy-desc">${escHtml(node.description)}</div>` : ''}
+                </div>
+            </div>`;
+        container.appendChild(nodeEl);
+
+        if (hasChildren) {
+            const childrenWrap = document.createElement('div');
+            childrenWrap.className = 'hierarchy-children';
+            childIds.forEach(id => {
+                const child = nodeMap[id];
+                if (child) childrenWrap.appendChild(buildHierarchyNode(child, children, nodeMap, depth + 1));
+            });
+            container.appendChild(childrenWrap);
+
+            nodeEl.addEventListener('click', () => {
+                const chevron = nodeEl.querySelector('.hierarchy-chevron');
+                const isExpanded = childrenWrap.style.display !== 'none';
+                childrenWrap.style.display = isExpanded ? 'none' : '';
+                if (chevron) chevron.textContent = isExpanded ? '▸' : '▾';
+                chevron?.classList.toggle('expanded', !isExpanded);
+            });
+        }
+
+        return container;
+    }
+
+    function buildComparisonDiagram(diagram) {
+        const nodes = diagram.nodes || [];
+        const edges = diagram.edges || [];
+        const left  = nodes.filter((_, i) => i % 2 === 0);
+        const right = nodes.filter((_, i) => i % 2 !== 0);
+        const count = Math.max(left.length, right.length);
+
+        const wrap = document.createElement('div');
+        wrap.className = 'comparison-diagram';
+
+        if (edges.length) {
+            const headers = document.createElement('div');
+            headers.className = 'comparison-headers';
+            headers.innerHTML = `
+                <div class="comparison-header">${escHtml(edges[0].from.toUpperCase())}</div>
+                <div class="comparison-header">${escHtml(edges[0].to.toUpperCase())}</div>`;
+            wrap.appendChild(headers);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const row = document.createElement('div');
+            row.className = 'comparison-row';
+            const l = left[i], r = right[i];
+            row.innerHTML = `
+                ${l ? `<div class="comparison-cell"><div class="comparison-cell-label">${escHtml(l.label)}</div>${l.description ? `<div class="comparison-cell-desc">${escHtml(l.description)}</div>` : ''}</div>` : '<div class="comparison-cell comparison-cell-empty"></div>'}
+                ${r ? `<div class="comparison-cell"><div class="comparison-cell-label">${escHtml(r.label)}</div>${r.description ? `<div class="comparison-cell-desc">${escHtml(r.description)}</div>` : ''}</div>` : '<div class="comparison-cell comparison-cell-empty"></div>'}`;
+            wrap.appendChild(row);
+        }
+
+        return wrap;
+    }
+
+    // ── Timeline builder ──────────────────────────────────────────────────────
+    function buildTimeline(events) {
+        const wrap = document.createElement('div');
+        wrap.className = 'timeline-wrap';
+
+        const header = document.createElement('div');
+        header.className = 'diagram-header';
+        header.innerHTML = `<span class="diagram-accent-bar"></span><span class="diagram-title">TIMELINE</span>`;
+        wrap.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'timeline-list';
+
+        events.forEach((e, i) => {
+            const isLast = i === events.length - 1;
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+                <div class="timeline-spine">
+                    <div class="timeline-dot"></div>
+                    ${!isLast ? '<div class="timeline-line"></div>' : ''}
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-date">${escHtml(e.date?.toString() || '?')}</div>
+                    <div class="timeline-event-title">${escHtml(e.title?.toString() || '')}</div>
+                    ${e.description ? `<div class="timeline-event-desc">${escHtml(e.description.toString())}</div>` : ''}
+                </div>`;
+            list.appendChild(item);
+        });
+
+        wrap.appendChild(list);
+        return wrap;
+    }
+
+    // ── Topological sort for process diagrams ─────────────────────────────────
+    function topoSort(nodes, edges) {
+        if (!edges.length) return nodes;
+        const nodeMap   = Object.fromEntries(nodes.map(n => [n.id, n]));
+        const inEdges   = Object.fromEntries(nodes.map(n => [n.id, []]));
+        const outEdges  = Object.fromEntries(nodes.map(n => [n.id, []]));
+        edges.forEach(e => {
+            if (outEdges[e.from]) outEdges[e.from].push(e.to);
+            if (inEdges[e.to])   inEdges[e.to].push(e.from);
+        });
+        const roots   = nodes.filter(n => !inEdges[n.id].length);
+        const ordered = [];
+        const seen    = new Set();
+        const queue   = [...roots];
+        while (queue.length) {
+            const curr = queue.shift();
+            if (seen.has(curr.id)) continue;
+            seen.add(curr.id);
+            ordered.push(curr);
+            (outEdges[curr.id] || []).forEach(nextId => {
+                if (!seen.has(nextId) && nodeMap[nextId]) queue.push(nodeMap[nextId]);
+            });
+        }
+        nodes.forEach(n => { if (!seen.has(n.id)) ordered.push(n); });
+        return ordered;
+    }
+
+    // ── Typing indicator ──────────────────────────────────────────────────────
     function appendTyping() {
         const id  = 'typing-' + Date.now();
         const div = document.createElement('div');
@@ -333,9 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function clearMessages() {
-        messagesEl.innerHTML = '';
-    }
+    function clearMessages()  { messagesEl.innerHTML = ''; }
 
     function showEmpty() {
         if (document.getElementById('chat-empty')) return;
@@ -349,28 +570,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         messagesEl.appendChild(div);
     }
 
-    function hideEmpty() {
-        document.getElementById('chat-empty')?.remove();
-    }
-
-    function setSending(val) {
-        sendBtn.disabled  = val;
-        textarea.disabled = val;
-    }
-
-    function scrollToBottom() {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
+    function hideEmpty()   { document.getElementById('chat-empty')?.remove(); }
+    function setSending(v) { sendBtn.disabled = v; textarea.disabled = v; }
+    function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
     function escHtml(str) {
         return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
-// ── Init ──────────────────────────────────────────────────────────────────
     await loadSessions();
-    if (window.innerWidth > 768) sidebar.classList.add('open');  // open by default on desktop
+    if (window.innerWidth > 768) sidebar.classList.add('open');
 });

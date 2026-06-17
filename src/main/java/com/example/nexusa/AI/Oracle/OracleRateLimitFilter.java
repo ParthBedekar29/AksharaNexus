@@ -24,7 +24,21 @@ import java.io.IOException;
  */
 @Component
 public class OracleRateLimitFilter extends OncePerRequestFilter {
+    private boolean isGreeting(String text) {
+        if (text == null) return false;
 
+        String q = text.trim().toLowerCase();
+
+        return q.equals("hi")
+                || q.equals("hello")
+                || q.equals("hey")
+                || q.equals("bye")
+                || q.equals("goodbye")
+                || q.equals("thanks")
+                || q.equals("thank you")
+                || q.equals("ok")
+                || q.equals("okay");
+    }
     private static final String ORACLE_PATH = "/oracle/query";
 
     /**
@@ -110,20 +124,5 @@ public class OracleRateLimitFilter extends OncePerRequestFilter {
 
         // 3. Direct remote address
         return "ip:" + request.getRemoteAddr();
-    }
-    private boolean isGreeting(String text) {
-        if (text == null) return false;
-
-        String q = text.trim().toLowerCase();
-
-        return q.equals("hi")
-                || q.equals("hello")
-                || q.equals("hey")
-                || q.equals("bye")
-                || q.equals("goodbye")
-                || q.equals("thanks")
-                || q.equals("thank you")
-                || q.equals("ok")
-                || q.equals("okay");
     }
 }

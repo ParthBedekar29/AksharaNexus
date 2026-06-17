@@ -277,11 +277,7 @@ public class OracleService {
             String answer = llmService.generateFast(system, cleanUserQuery, history);
             conversationStore.addUserTurn(sessionId, cleanUserQuery);
             conversationStore.addAssistantTurn(sessionId, answer);
-            if (answer.startsWith("RATE_LIMITED:")) {
-                return new OracleResponse(
-                        "The Oracle is briefly resting — please try again in a few hours.",
-                        List.of(), null, null, null);
-            }
+            // Conversational replies never produce diagrams
             return new OracleResponse(answer, List.of(), null, null, null);
         }
 

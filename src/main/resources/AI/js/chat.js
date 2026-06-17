@@ -275,18 +275,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messagesEl.appendChild(div);
 
-        // Diagrams
-        (data.diagrams || []).forEach(diagram => {
-            if (diagram && diagram.nodes && diagram.nodes.length) {
-                const inner = div.querySelector('.msg-oracle-inner');
-                inner.appendChild(buildDiagram(diagram));
-            }
-        });
+        const diagrams = (data.diagrams || []).filter(d => d && d.nodes && d.nodes.length);
+        if (diagrams.length === 1) {
+            div.appendChild(buildDiagram(diagrams[0]));
+        } else if (diagrams.length > 1) {
+            const grid = document.createElement('div');
+            grid.className = 'diagrams-grid';
+            diagrams.forEach(diagram => grid.appendChild(buildDiagram(diagram)));
+            div.appendChild(grid);
+        }
 
-        // Timeline
+// Timeline — same
         if (data.timeline && data.timeline.length) {
-            const inner = div.querySelector('.msg-oracle-inner');
-            inner.appendChild(buildTimeline(data.timeline));
+            div.appendChild(buildTimeline(data.timeline));
         }
 
         scrollToBottom();

@@ -3,6 +3,7 @@
 :root {
     --font-ui:     'Inter', system-ui, -apple-system, sans-serif;
     --font-display:'Inter Tight', 'Inter', system-ui, sans-serif;
+    --font-mono:   'SF Mono', 'Fira Code', 'Consolas', monospace;  /* add this */
     --radius-sm:   6px;
     --radius-md:   10px;
     --radius-lg:   14px;
@@ -659,7 +660,7 @@ body {
     background: var(--oracle-bg);
     border: 1px solid var(--oracle-border);
     border-radius: 3px 14px 14px 14px;
-    overflow: hidden;
+    overflow: visible;  /* was: hidden — this clips the diagrams */
 }
 .msg-oracle-inner .msg-oracle-content {
     border: none;
@@ -802,7 +803,23 @@ body {
     letter-spacing: 2.5px;
     color: var(--text-muted);
 }
+.diagrams-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+}
 
+.diagrams-grid .diagram-wrap {
+    margin: 0;
+    max-width: 100%;
+}
+
+@media (max-width: 768px) {
+    .diagrams-grid {
+        grid-template-columns: 1fr;
+    }
+}
 /* ── Process diagram ───────────────────────────────────────────────────────── */
 
 .process-diagram {

@@ -568,42 +568,40 @@ public class OracleService {
                     - Every paragraph adds new information or a new analytical angle — no restatements
                     - No filler phrases whatsoever
                     """;
-
             case STRUCTURED_RESEARCH -> """
-    You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
-    """ + (hasContext
+You are a scholarly AI historian. The user wants a DETAILED, STRUCTURED breakdown.
+""" + (hasContext
                     ? "Use the provided AksharaNexus database records as your primary source."
                     : "No specific records found. Use your historical knowledge and label everything 📚.") + """
 
-    Detect if the user is asking primarily for a DIAGRAM (phrases like "generate a diagram",
-    "show me a diagram", "detailed diagram", "diagram for", "diagram of"). If so:
-    - Output DIAGRAMS FIRST, before any prose
-    - Produce one ```diagram block per major theme — minimum 5 themes:
-      Governance, Military, Economy & Trade, Society & Culture, Technology & Engineering
-    - Each diagram must be type "hierarchy" with a descriptive title and 8-12 nodes with meaningful edges
-    - After ALL diagram blocks, write a single short paragraph (2-3 sentences) summarising
-      what the diagrams collectively cover
-    - No prose before the first diagram block under any circumstances
+DIAGRAM REQUEST DETECTION:
+If the user asks for a diagram ("generate a diagram", "diagram for", "diagram of"):
+- Produce exactly 3-4 diagram blocks, one per major theme
+- Vary the type: use "hierarchy" for power/admin structures, "process" for sequences/flows, "comparison" for side-by-side contrasts
+- Each diagram: 6-10 nodes with meaningful edges and descriptions
+- Output ALL diagrams first, then a 2-sentence summary paragraph
+- No prose before the first diagram block
 
-    Otherwise, FORMAT IN RICH MARKDOWN — START DIRECTLY WITH THE FIRST ## HEADING:
-    ## Theme name
-    ### Sub-topic name
-    - **Key term**: specific fact with date or artefact
-    ### Sub-topic name 2
-    - bullets...
-    ## Theme 2, ## Theme 3 — same pattern
-    ## Key Takeaways
-    - **Point 1**
-    - **Point 2**
+COMPARISON WITH DIAGRAMS ("compare X and Y with detailed diagrams"):
+- Produce exactly 2-3 diagram blocks maximum — quality over quantity
+- First diagram: type "comparison" contrasting the two civilizations side by side
+- Second diagram: type "hierarchy" showing one civilization's structure
+- Third diagram (optional): type "process" showing a key historical sequence
+- Output diagrams first, then 2-3 paragraphs of comparative analysis
+- Never produce more than 3 diagrams for a comparison request
 
-    RULES:
-    - Never output literal bracket characters like [Theme 1] or [Section]
-    - Begin directly with diagrams or first ## — no preamble, no banners
-    - Minimum 3 ### sub-headings per ## section, minimum 3 bullets per ###
-    - Cover ONLY themes the user explicitly named; if none, default to:
-      Governance, Economy & Trade, Technology, Society & Culture, Military
-    - Label any point not from database records with 📚
-    - The user's question is: \"""" + userQuery + "\"";
+DIAGRAM TYPES — use all three, not just hierarchy:
+- "hierarchy": power structures, social classes, administrative trees
+- "process": conquest sequences, trade flows, rise-and-fall timelines, cause-and-effect chains  
+- "comparison": side-by-side contrasts between two subjects (nodes alternate left/right)
+
+Otherwise FORMAT IN RICH MARKDOWN starting directly with ## headings.
+
+RULES:
+- Never output literal bracket characters like [Theme 1] or [Section]
+- Begin directly with diagrams or first ## — no preamble
+- Label anything not from database records with 📚
+- The user's question is: \"""" + userQuery + "\"";
 
             case TIMELINE -> "";
         };

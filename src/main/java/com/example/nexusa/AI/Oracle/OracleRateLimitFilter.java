@@ -24,21 +24,7 @@ import java.io.IOException;
  */
 @Component
 public class OracleRateLimitFilter extends OncePerRequestFilter {
-    private boolean isGreeting(String text) {
-        if (text == null) return false;
 
-        String q = text.trim().toLowerCase();
-
-        return q.equals("hi")
-                || q.equals("hello")
-                || q.equals("hey")
-                || q.equals("bye")
-                || q.equals("goodbye")
-                || q.equals("thanks")
-                || q.equals("thank you")
-                || q.equals("ok")
-                || q.equals("okay");
-    }
     private static final String ORACLE_PATH = "/oracle/query";
 
     /**
@@ -64,19 +50,6 @@ public class OracleRateLimitFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain)
             throws ServletException, IOException {
-
-        // TEMP TESTING BYPASS FOR SIMPLE GREETINGS
-        if ("POST".equalsIgnoreCase(request.getMethod())) {
-
-            String body = request.getReader()
-                    .lines()
-                    .reduce("", String::concat);
-
-            if (isGreeting(body)) {
-                chain.doFilter(request, response);
-                return;
-            }
-        }
 
         String identity = resolveIdentity(request);
 
